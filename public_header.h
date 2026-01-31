@@ -25,14 +25,15 @@ namespace COMMON_DEFINE {
 
 
 #define BOOL                                                int
+#define FALSE                                               0
+#define DWORD                                               uint
 
-#define CPP_MQH_GO_WORD(source)                             (source)
 #define CPP_MQH_LARGE                                       long
-#define CPP_MQH_ULONG                                       ulong
-#define CPP_MQH_VARIABLE_DATA_TYPE_WRITE                    ulong
-#define CPP_MQH_VARIABLE_DATA_TYPE_READ                     ushort&
-#define CPP_MQH_PLARGE                                      long
-#define SECURITY_ATTRIBUTES                                 PVOID
+#define CPP_MQH_SECURITY_ATTRIBUTES                         PVOID
+#define CPP_MQH_WCHAR_T                                     string
+
+#define CPP_MQH_ADDRESS_OF(obj)                             obj
+#define CPP_MQH_ADDRESS_NULL(obj)                           obj
 
 #define FIND_ERROR_COUNT                                    5
 #define FIND_VIS_COUNT                                      5
@@ -84,6 +85,7 @@ namespace COMMON_DEFINE {
 	const string COLON_STRING = ":";
 	const string LINE_BREAK = "\n";
 	const string BACK_SLASH_STRING = "\\";
+	const string COMMAND_LINE_ESCAPE = "\"";
 
 	const int INVALID_HANDLE_VALUE = -1;
 
@@ -111,6 +113,9 @@ namespace COMMON_DEFINE {
 
 #ifdef COMPILER_FOO_CPP
 
+#define CPP_MQH_ADDRESS_OF(obj)                             &(obj)
+#define CPP_MQH_ADDRESS_NULL(obj)                           NULL
+
 
 	using ulong = unsigned __int64;
 	using string = std::wstring;
@@ -118,9 +123,12 @@ namespace COMMON_DEFINE {
 	using uint = unsigned int;
 
 	using CPP_MQH_LARGE = LARGE_INTEGER;
-	using CPP_MQH_ULONG = unsigned __int64;
-	using CPP_MQH_PLARGE = PLARGE_INTEGER;
+	using CPP_MQH_SECURITY_ATTRIBUTES = SECURITY_ATTRIBUTES;
+	using CPP_MQH_WCHAR_T = wchar_t*;
+
 	using FIND_DATAW = WIN32_FIND_DATAW;
+
+	const uint MAX_LOAD_STRING = 256;
 
 	const uint FIND_ERROR_COUNT = 5;
 	const uint FIND_VIS_COUNT = 5;
@@ -173,6 +181,7 @@ namespace COMMON_DEFINE {
 	const std::wstring SPACE_STRING = L" ";
 	const std::wstring COLON_STRING = L":";
 	const std::wstring BACK_SLASH_STRING = L"\\";
+	const std::wstring COMMAND_LINE_ESCAPE = L"\"";
 
 	const std::wstring MUTEX_GLOBAL_NAME_LOG_PROCESS = L"Global\\ReturnSafety_CONTROL_Log_Mutex";
 
@@ -201,66 +210,6 @@ namespace COMMON_DEFINE {
 	}
 	
 
-
-	class PROCESS_MANAGER {
-
-	private:
-
-		static bool Get_Mutex(const std::wstring_view mutex_name, HANDLE& mutex_handle, DWORD milli_second) {
-
-			mutex_handle = CreateMutexW(NULL, FALSE, mutex_name.data());
-
-			if (mutex_handle == NULL)
-				return false;
-
-			DWORD result = WaitForSingleObject(mutex_handle, milli_second);
-
-			switch (result) {
-
-			case WAIT_OBJECT_0:
-				return true;
-			case WAIT_ABANDONED:
-				return true;
-			case WAIT_TIMEOUT:
-			case WAIT_FAILED:
-			default:
-				CloseHandle(mutex_handle);
-				mutex_handle = INVALID_HANDLE_VALUE;
-				return false;
-			}
-		}
-
-	public:
-
-		static void Close(HANDLE handle) {
-
-			if (handle != INVALID_HANDLE_VALUE) {
-
-				ReleaseMutex(handle);
-
-				CloseHandle(handle);
-			}
-		}
-
-		static bool Trial_Get_Mutex(const std::wstring_view mutex_name, HANDLE& mutex_handle) {
-
-			for (size_t i = 0; i < GET_MUTEX_TRIAL_MAX_COUNT; i++) {
-
-				if (Get_Mutex(mutex_name, mutex_handle, GET_MUTEX_WAIT_LOCK_MILLI_SEC)) {
-
-					return true;
-				}
-
-				else {
-
-					Sleep(GET_MUTEX_TRIAL_SLEEP_MILLI_SEC);
-				}
-			}
-
-			return false;
-		}
-	};
-
 #ifdef COMPILER_FOO_CPP_ERR_MS_EXE
 
 
@@ -270,10 +219,6 @@ namespace COMMON_DEFINE {
 #endif
 
 #ifdef COMPILER_FOO_CPP_LOG_MNG_EXE
-
-
-	using CPP_MQH_VARIABLE_DATA_TYPE_WRITE = std::wstring;
-	using CPP_MQH_VARIABLE_DATA_TYPE_READ = wchar_t*;
 
 
 
@@ -349,14 +294,24 @@ namespace COMMON_DEFINE {
 	const uint CUSTOM_ERROR_CODE_FAILED_FILE_LOCK_ONE = 53;
 	const uint CUSTOM_ERROR_CODE_FAILED_GET_FILE_TIME = 54;
 	const uint CUSTOM_ERROR_CODE_FAILED_FILE_WRITE_FLASH = 55;
+	const uint CUSTOM_ERROR_CODE_FRAUD_COMMAND_LINE_VALUE = 56;
+	const uint CUSTOM_ERROR_CODE_FRAUD_CALL_NEW_PROCCESS = 57;
 
-	const uint CUSTOM_ERROR_CODE_MAX_VALUE = (56 + ERR_USER_ERROR_FIRST);
+	const uint CUSTOM_ERROR_CODE_MAX_VALUE = (58 + ERR_USER_ERROR_FIRST);
 
 	const uint TIME_SCALE_PREMISE_YEAR = 1900;
 	const uint TIME_SCALE_MOON_RETOUCH_VALUE = 1;
 
 	const uint SLEEP_MILLI_SECOND_VALUE = 10;
 	const uint TRY_FILE_LOCK_COUNTER = 10;
+
+	const uint COMMAND_LINE_ASSIGNMENT_NUMBER_EXE_APP_NAME = 0;
+	const uint COMMAND_LINE_ASSIGNMENT_NUMBER_CALL_APP_NAME = 1;
+	const uint COMMAND_LINE_ASSIGNMENT_NUMBER_FILE_NAME = 2;
+	const uint COMMAND_LINE_ASSIGNMENT_NUMBER_VERSION = 3;
+	const uint COMMAND_LINE_ASSIGNMENT_NUMBER_LINE_NUMBER = 4;
+
+	const uint COMMAND_LINE_ASSIGNMENT_NUMBER_TOTAL = 5;
 
 	const ulong MT5_LANGUAGE_NUM_FILE_SIZE = sizeof(ulong);
 	const ulong ERR_MS_ERR_NUM_FILE_SIZE = sizeof(ulong);
@@ -379,6 +334,220 @@ namespace COMMON_DEFINE {
 
 
 
+	class PROCESS_MANAGER {
+
+	private:
+
+#ifdef COMPILER_FOO_CPP
+
+		static bool Get_Mutex(const std::wstring_view mutex_name, HANDLE& mutex_handle, DWORD milli_second) {
+
+			mutex_handle = CreateMutexW(NULL, FALSE, mutex_name.data());
+
+			if (mutex_handle == NULL)
+				return false;
+
+			DWORD result = WaitForSingleObject(mutex_handle, milli_second);
+
+			switch (result) {
+
+			case WAIT_OBJECT_0:
+				return true;
+			case WAIT_ABANDONED:
+				return true;
+			case WAIT_TIMEOUT:
+			case WAIT_FAILED:
+			default:
+				CloseHandle(mutex_handle);
+				mutex_handle = INVALID_HANDLE_VALUE;
+				return false;
+			}
+		}
+
+		static ulong Get_Command_Line(std::vector<wchar_t> result[COMMAND_LINE_ASSIGNMENT_NUMBER_TOTAL]) {
+
+			LPWSTR Full_Cmd_Line = GetCommandLineW();
+
+			int Argc;
+			LPWSTR* Argv = CommandLineToArgvW(Full_Cmd_Line, &Argc);
+
+			if (Argv != NULL && Argc == COMMAND_LINE_ASSIGNMENT_NUMBER_TOTAL) {
+
+				for (size_t i = 0; i < Argc; i++) {
+
+					size_t len = wcsnlen_s(Argv[i], MAX_LOAD_STRING);
+
+					result[i].assign(Argv[i], Argv[i] + len + 1);
+				}
+
+				LocalFree(Argv);
+
+				return ERROR_SUCCESS;
+			}
+
+			else {
+
+				if (Argv != NULL) {
+
+					LocalFree(Argv);
+				}
+
+				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FRAUD_COMMAND_LINE_VALUE);
+			}
+		}
+
+		static std::wstring To_Command_Line_String(const std::vector<wchar_t> data[COMMAND_LINE_ASSIGNMENT_NUMBER_TOTAL]) {
+
+			std::wstring result;
+
+			result = NULL_STRING;
+
+			result.append(L"program name ");
+			result.append(data[COMMAND_LINE_ASSIGNMENT_NUMBER_CALL_APP_NAME].data());
+			result.append(SPACE_STRING);
+
+			result.append(L"file name ");
+			result.append(data[COMMAND_LINE_ASSIGNMENT_NUMBER_FILE_NAME].data());
+			result.append(SPACE_STRING);
+
+			result.append(L"version ");
+			result.append(data[COMMAND_LINE_ASSIGNMENT_NUMBER_VERSION].data());
+			result.append(SPACE_STRING);
+
+			result.append(L"line number ");
+			result.append(data[COMMAND_LINE_ASSIGNMENT_NUMBER_LINE_NUMBER].data());
+			result.append(SPACE_STRING);
+
+			return result;
+		}
+
+#endif
+
+		static string Get_Command_Line_Norm(const string& source) {
+
+			string result = COMMAND_LINE_ESCAPE;
+
+			StringAdd(result, source);
+			StringAdd(result, COMMAND_LINE_ESCAPE);
+
+			return result;
+		}
+
+	public:
+
+#ifdef COMPILER_FOO_CPP
+
+		static ulong To_Command_Line_Message(std::wstring& result) {
+
+			std::vector<wchar_t> Buf[COMMAND_LINE_ASSIGNMENT_NUMBER_TOTAL];
+
+			ulong Error_Code = Get_Command_Line(Buf);
+
+			if (Error_Code != ERROR_SUCCESS) {
+
+				return Error_Code;
+			}
+
+			result = To_Command_Line_String(Buf);
+
+			return ERROR_SUCCESS;
+		}
+
+		static void Close(HANDLE handle) {
+
+			if (handle != INVALID_HANDLE_VALUE) {
+
+				ReleaseMutex(handle);
+
+				CloseHandle(handle);
+			}
+		}
+
+		static bool Trial_Get_Mutex(const std::wstring_view mutex_name, HANDLE& mutex_handle) {
+
+			for (size_t i = 0; i < GET_MUTEX_TRIAL_MAX_COUNT; i++) {
+
+				if (Get_Mutex(mutex_name, mutex_handle, GET_MUTEX_WAIT_LOCK_MILLI_SEC)) {
+
+					return true;
+				}
+
+				else {
+
+					Sleep(GET_MUTEX_TRIAL_SLEEP_MILLI_SEC);
+				}
+			}
+
+			return false;
+		}
+
+#endif
+
+		static ulong Create_Proccess(
+
+			const CPP_MQH_WCHAR_T           app_name,
+			CPP_MQH_WCHAR_T           command_line,
+			const uint32_t& creation_flags,
+			const CPP_MQH_WCHAR_T           current_directory) {
+
+			CPP_MQH_SECURITY_ATTRIBUTES Proccess = {}, Thread = {};
+			PVOID Environment = {};
+
+
+			STARTUPINFOW Startup_Info = {};
+			PROCESS_INFORMATION Process_Information = {};
+
+			Startup_Info.cb = sizeof(Startup_Info);
+
+			if (CreateProcessW(
+
+				app_name,
+				command_line,
+				CPP_MQH_ADDRESS_NULL(Proccess),
+				CPP_MQH_ADDRESS_NULL(Thread),
+				FALSE,
+				creation_flags,
+				CPP_MQH_ADDRESS_NULL(Environment),
+				current_directory,
+				CPP_MQH_ADDRESS_OF(Startup_Info),
+				CPP_MQH_ADDRESS_OF(Process_Information))) {
+
+				CloseHandle(Process_Information.hProcess);
+				CloseHandle(Process_Information.hThread);
+
+				return ERROR_SUCCESS;
+			}
+
+			else {
+
+				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FRAUD_CALL_NEW_PROCCESS);
+			}
+		}
+
+		static string Create_Command_Line(const string& exe_app,const string& call_app,const string& file_name,const string& version,const string& line_num) {
+
+			string result = NULL_STRING;
+
+			StringAdd(result,Get_Command_Line_Norm(exe_app));
+			StringAdd(result, SPACE_STRING);
+
+			StringAdd(result, Get_Command_Line_Norm(call_app));
+			StringAdd(result, SPACE_STRING);
+
+			StringAdd(result, Get_Command_Line_Norm(file_name));
+			StringAdd(result, SPACE_STRING);
+
+			StringAdd(result, Get_Command_Line_Norm(version));
+			StringAdd(result, SPACE_STRING);
+
+			StringAdd(result, Get_Command_Line_Norm(line_num));
+
+			return result;
+		}
+	};
+
+
+
 	class FILE_MANAGER_BASE {
 
 	protected:
@@ -396,19 +565,24 @@ namespace COMMON_DEFINE {
 
 		DATA_TYPE_MEMORY_MAP Data;
 
-		static bool Now_File_Lock;
+		bool Now_File_Lock;
 
-		static bool Get_Now_File_Lock() {
+		void Now_File_Lock_Initialization() {
+
+			Now_File_Lock = false;
+		}
+
+		bool Get_Now_File_Lock() {
 
 			return Now_File_Lock;
 		}
 
-		static void Set_Now_File_Lock(const bool& value) {
+		void Set_Now_File_Lock(const bool& value) {
 
 			Now_File_Lock = value;
 		}
 
-		static ulong File_Lock_Only_1() {
+		ulong File_Lock_Only_1() {
 
 			if (Get_Now_File_Lock()) {
 
@@ -436,14 +610,52 @@ namespace COMMON_DEFINE {
 			return 0;
 		}
 
-		virtual inline ulong Get_QuadPart_Cpp_Mqh(const CPP_MQH_PLARGE& source) {
+		virtual inline ulong Get_QuadPart_Cpp_Mqh(const CPP_MQH_LARGE& source) {
 
 			return 0;
 		}
 
-		virtual inline ulong File_Initialization(const HANDLE& handle) {
+		inline ulong File_Initialization(const HANDLE& handle) {
 
-			return 0;
+			CPP_MQH_LARGE Move_P = {}, Result_P = {};
+
+			if (!SetFilePointerEx(handle, Move_P, CPP_MQH_ADDRESS_NULL(Result_P), FILE_BEGIN)) {
+
+				return GetLastError();
+			}
+
+			else {
+
+				Data.Cpp_Value = 0;
+
+				ResetLastError();
+
+				DWORD Write_Size = 0;
+
+				ulong Error_Code = File_Write(handle);
+
+				if (Error_Code != ERROR_SUCCESS) {
+
+					return GetLastError();
+				}
+
+				else {
+
+					if ((uint)Write_Size != sizeof(Data.Cpp_Value)) {
+
+						return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_WRITE_FILE_BYTE_SIZE);
+					}
+
+					Error_Code = File_Write_Flash(handle);
+
+					if (Error_Code != ERROR_SUCCESS) {
+
+						return Error_Code;
+					}
+
+					return ERROR_SUCCESS;
+				}
+			}
 		}
 
 		inline uint32_t FILE_LOCK_MASK_LOW(const ulong& file_data) {
@@ -471,9 +683,18 @@ namespace COMMON_DEFINE {
 			return 0;
 		}
 
-		virtual inline ulong Get_File_Last_Write_Time(const HANDLE& file_handle, ulong& result) {
+		inline ulong Get_File_Last_Write_Time(const HANDLE& file_handle, ulong& result) {
 
-			return 0;
+			FILETIME Create = {}, Access = {}, Write = {};
+
+			if (!GetFileTime(file_handle, CPP_MQH_ADDRESS_NULL(Create), CPP_MQH_ADDRESS_NULL(Access), CPP_MQH_ADDRESS_OF(Write))) {
+
+				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_GET_FILE_TIME);
+			}
+
+			result = ((ulong)Write.dwHighDateTime << 32) | Write.dwLowDateTime;
+
+			return ERROR_SUCCESS;
 		}
 
 		inline ulong Get_Full_Path(const string& control_drc, const string& file_drc, const string& file_name,string& result) {
@@ -501,7 +722,7 @@ namespace COMMON_DEFINE {
 			}
 		}
 
-		inline ulong Open_File(HANDLE& file_handle, const string file_name, CPP_MQH_PLARGE& result_file_size) {
+		inline ulong Open_File(HANDLE& file_handle, const string file_name, CPP_MQH_LARGE& result_file_size) {
 
 			ResetLastError();
 
@@ -528,7 +749,7 @@ namespace COMMON_DEFINE {
 					}
 				}
 
-				if (!GetFileSizeEx(file_handle, result_file_size)) {
+				if (!GetFileSizeEx(file_handle, CPP_MQH_ADDRESS_OF(result_file_size))) {
 
 					CloseHandle(file_handle);
 
@@ -544,10 +765,10 @@ namespace COMMON_DEFINE {
 			}
 		}
 
-		inline ulong Check_File_Size(const HANDLE& file_handle, const ulong& byte_size, const CPP_MQH_PLARGE& file_size) {
+		inline ulong Check_File_Size(const HANDLE& file_handle, const ulong& byte_size, const CPP_MQH_LARGE& file_size) {
 
 
-			CPP_MQH_ULONG To_Size = Get_QuadPart_Cpp_Mqh(file_size);
+			ulong To_Size = Get_QuadPart_Cpp_Mqh(file_size);
 
 			if (byte_size != To_Size) {
 
@@ -565,19 +786,44 @@ namespace COMMON_DEFINE {
 			return 0;
 		}
 
-		virtual inline ulong Unlock_File(const HANDLE& file_handle, const ulong& byte_size) {
+		inline ulong Unlock_File(const HANDLE& file_handle, const ulong& byte_size) {
 
-			return 0;
+			OVERLAPPED Ov_R = {};
+			uint LockLow = FILE_LOCK_MASK_LOW(byte_size);
+			uint LockHigh = FILE_LOCK_MASK_HIGH(byte_size);
+
+			if (!UnlockFileEx(file_handle, 0, LockLow, LockHigh, CPP_MQH_ADDRESS_OF(Ov_R))) {
+
+				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_UNLOCK);
+			}
+
+			else {
+
+				return ERROR_SUCCESS;
+			}
 		}
 
-		virtual inline ulong Lock_File(const HANDLE& file_handle, const ulong& file_size) {
+		inline ulong Lock_File(const HANDLE& file_handle, const ulong& file_size) {
 
-			return 0;
+			OVERLAPPED Ov_R = {};
+
+			uint LockLow = FILE_LOCK_MASK_LOW(file_size);
+			uint LockHigh = FILE_LOCK_MASK_HIGH(file_size);
+
+			if (!LockFileEx(file_handle, LOCKFILE_EXCLUSIVE_LOCK, 0, LockLow, LockHigh, CPP_MQH_ADDRESS_OF(Ov_R))) {
+
+				return CUSTOM_ERROR_CODE_FAILED_FILE_LOCK;
+			}
+
+			else {
+
+				return ERROR_SUCCESS;
+			}
 		}
 
 		inline ulong Try_Lock_File(const HANDLE& file_handle, const ulong& file_size) {
 
-			ulong result;
+			ulong result = 0;
 
 			for (uint i = 0; i < TRY_FILE_LOCK_COUNTER; i++) {
 
@@ -598,10 +844,9 @@ namespace COMMON_DEFINE {
 
 			ResetLastError();
 
-			CPP_MQH_LARGE Move_P = {};
-			CPP_MQH_PLARGE result_P = {};
+			CPP_MQH_LARGE Move_P = {}, result_P = {};
 
-			if (!SetFilePointerEx(file_handle, Move_P, result_P, FILE_BEGIN)) {
+			if (!SetFilePointerEx(file_handle, Move_P, CPP_MQH_ADDRESS_NULL(result_P), FILE_BEGIN)) {
 
 				return GetLastError();
 			}
@@ -622,6 +867,16 @@ namespace COMMON_DEFINE {
 			return 0;
 		}
 
+		inline void Close_File(HANDLE& file_handle) {
+
+			if (file_handle != INVALID_HANDLE_VALUE && file_handle != NULL) {
+
+				CloseHandle(file_handle);
+
+				file_handle = NULL;
+			}
+		}
+
 	public:
 
 		inline ulong Alignment_Checker() {
@@ -639,14 +894,6 @@ namespace COMMON_DEFINE {
 		virtual inline void Set_Write_Data(const ulong data) {
 
 
-		}
-
-		inline void Close_File(const HANDLE& file_handle) {
-
-			if (file_handle != INVALID_HANDLE_VALUE && file_handle != NULL) {
-
-				CloseHandle(file_handle);
-			}
 		}
 	};
 
@@ -674,6 +921,19 @@ namespace COMMON_DEFINE {
 			}
 		}
 
+		virtual inline ulong Create_Folder(const string& folder_name) override {
+
+			if (CreateDirectoryW(folder_name.c_str(), NULL) == 0) {
+
+				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_ROOT_DRC);
+			}
+
+			else {
+
+				return ERROR_SUCCESS;
+			}
+		}
+
 		virtual inline HANDLE Create_File(const string& file_name) override {
 
 			return CreateFileW(
@@ -687,68 +947,9 @@ namespace COMMON_DEFINE {
 				NULL);
 		}
 
-		virtual inline ulong Get_File_Last_Write_Time(const HANDLE& file_handle, ulong& result) {
+		virtual inline ulong Get_QuadPart_Cpp_Mqh(const CPP_MQH_LARGE& source) override {
 
-			FILETIME Create = {}, Access = {}, Write = {};
-
-			if (!GetFileTime(file_handle, &Create, &Access, &Write)) {
-
-				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_GET_FILE_TIME);
-			}
-
-			result = ((ulong)Write.dwHighDateTime << 32) | Write.dwLowDateTime;
-
-			return ERROR_SUCCESS;
-		}
-
-		virtual inline ulong Get_QuadPart_Cpp_Mqh(const CPP_MQH_PLARGE& source) override {
-
-			return source->QuadPart;
-		}
-
-		virtual inline ulong File_Initialization(const HANDLE& handle) override {
-
-			CPP_MQH_LARGE Move_P = {};
-			CPP_MQH_PLARGE Result_P = {};
-
-			if (!SetFilePointerEx(handle, Move_P, Result_P, FILE_BEGIN)) {
-
-				return GetLastError();
-			}
-
-			else {
-
-				Data.Cpp_Value = 0;
-
-				ResetLastError();
-
-				DWORD Write_Size = 0;
-
-				BOOL result = WriteFile(handle, &Data.Cpp_Value, sizeof(Data.Cpp_Value), &Write_Size, NULL);
-
-				if (!result) {
-
-					if (GetLastError() == ERROR_IO_PENDING) {
-
-						return ERROR_SUCCESS;
-					}
-
-					else {
-
-						return GetLastError();
-					}
-				}
-
-				else {
-
-					if ((uint)Write_Size != sizeof(Data.Cpp_Value)) {
-
-						return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_WRITE_FILE_BYTE_SIZE);
-					}
-
-					return ERROR_SUCCESS;
-				}
-			}
+			return source.QuadPart;
 		}
 
 		virtual inline ulong File_Read(const HANDLE& file_handle) override {
@@ -816,41 +1017,6 @@ namespace COMMON_DEFINE {
 			return Data.Cpp_Value;
 		}
 
-		virtual inline ulong Lock_File(const HANDLE& file_handle, const ulong& file_size) override {
-
-			OVERLAPPED Ov_R = {};
-
-			uint LockLow = FILE_LOCK_MASK_LOW(file_size);
-			uint LockHigh = FILE_LOCK_MASK_HIGH(file_size);
-
-			if (!LockFileEx(file_handle, LOCKFILE_EXCLUSIVE_LOCK, 0, LockLow, LockHigh, &Ov_R)) {
-
-				return CUSTOM_ERROR_CODE_FAILED_FILE_LOCK;
-			}
-
-			else {
-
-				return ERROR_SUCCESS;
-			}
-		}
-
-		virtual inline ulong Unlock_File(const HANDLE& file_handle, const ulong& byte_size) override {
-
-			OVERLAPPED Ov_R = {};
-			uint LockLow = FILE_LOCK_MASK_LOW(byte_size);
-			uint LockHigh = FILE_LOCK_MASK_HIGH(byte_size);
-
-			if (!UnlockFileEx(file_handle, 0, LockLow, LockHigh, &Ov_R)) {
-
-				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_UNLOCK);
-			}
-
-			else {
-
-				return ERROR_SUCCESS;
-			}
-		}
-
 		virtual inline ulong Find_Drc(const string& drc_name, FIND_DATAW& result) override {
 
 			HANDLE Drc_Handle = FindFirstFileW(drc_name.c_str(), &result);
@@ -863,21 +1029,6 @@ namespace COMMON_DEFINE {
 			else {
 
 				FindClose(Drc_Handle);
-
-				return ERROR_SUCCESS;
-			}
-		}
-
-		virtual inline ulong Create_Folder(const string& folder_name) override {
-
-			SECURITY_ATTRIBUTES Atr = {};
-
-			if (CreateDirectoryW(folder_name.c_str(), &Atr) == 0) {
-
-				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_ROOT_DRC);
-			}
-
-			else {
 
 				return ERROR_SUCCESS;
 			}
@@ -937,6 +1088,21 @@ namespace COMMON_DEFINE {
 			}
 		}
 
+		virtual inline ulong Create_Folder(const string& folder_name) override {
+
+			CPP_MQH_SECURITY_ATTRIBUTES Atr = {};
+
+			if (CreateDirectoryW(folder_name, Atr) == 0) {
+
+				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_ROOT_DRC);
+			}
+
+			else {
+
+				return ERROR_SUCCESS;
+			}
+		}
+
 		virtual inline HANDLE Create_File(const string& file_name) override {
 
 			return CreateFileW(
@@ -950,69 +1116,9 @@ namespace COMMON_DEFINE {
 				NULL);
 		}
 
-		virtual inline ulong Get_QuadPart_Cpp_Mqh(const CPP_MQH_PLARGE& source) override {
+		virtual inline ulong Get_QuadPart_Cpp_Mqh(const CPP_MQH_LARGE& source) override {
 
 			return source;
-		}
-
-		virtual inline ulong Get_File_Last_Write_Time(const HANDLE& file_handle, ulong& result) {
-
-			FILETIME Create = {}, Access = {}, Write = {};
-
-			if (!GetFileTime(file_handle, Create, Access, Write)) {
-
-				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_GET_FILE_TIME);
-			}
-
-			result = ((ulong)Write.dwHighDateTime << 32) | Write.dwLowDateTime;
-
-			return ERROR_SUCCESS;
-		}
-
-		virtual inline ulong File_Initialization(const HANDLE& handle) override {
-
-			CPP_MQH_LARGE Move_P = {};
-			CPP_MQH_PLARGE Result_P = {};
-
-			if (!SetFilePointerEx(handle, Move_P, Result_P, FILE_BEGIN)) {
-
-				return GetLastError();
-			}
-
-			else {
-
-				Data.Mqh_Value = 0;
-				int Size = ArraySize(Data.Data_To_Binary) * sizeof(ushort);
-
-				ResetLastError();
-
-				uint Write_Size = 0;
-
-				BOOL result = WriteFile(handle, Data.Data_To_Binary, Size, Write_Size, NULL);
-
-				if (!result) {
-
-					if (GetLastError() == ERROR_IO_PENDING) {
-
-						return ERROR_SUCCESS;
-					}
-
-					else {
-
-						return GetLastError();
-					}
-				}
-
-				else {
-
-					if ((int)Write_Size != Size) {
-
-						return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_WRITE_FILE_BYTE_SIZE);
-					}
-
-					return ERROR_SUCCESS;
-				}
-			}
 		}
 
 		virtual inline ulong File_Read(const HANDLE& file_handle) override {
@@ -1084,41 +1190,6 @@ namespace COMMON_DEFINE {
 			return Data.Mqh_Value;
 		}
 
-		virtual inline ulong Lock_File(const HANDLE& file_handle, const ulong& file_size) override {
-
-			OVERLAPPED Ov_R = {};
-
-			uint LockLow = FILE_LOCK_MASK_LOW(file_size);
-			uint LockHigh = FILE_LOCK_MASK_HIGH(file_size);
-
-			if (!LockFileEx(file_handle, LOCKFILE_EXCLUSIVE_LOCK, 0, LockLow, LockHigh, Ov_R)) {
-
-				return CUSTOM_ERROR_CODE_FAILED_FILE_LOCK;
-			}
-
-			else {
-
-				return ERROR_SUCCESS;
-			}
-		}
-
-		virtual inline ulong Unlock_File(const HANDLE& file_handle, const ulong& byte_size) override {
-
-			OVERLAPPED Ov_R = {};
-			uint LockLow = FILE_LOCK_MASK_LOW(byte_size);
-			uint LockHigh = FILE_LOCK_MASK_HIGH(byte_size);
-
-			if (!UnlockFileEx(file_handle, 0, LockLow, LockHigh, Ov_R)) {
-
-				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_UNLOCK);
-			}
-
-			else {
-
-				return ERROR_SUCCESS;
-			}
-		}
-
 		virtual inline ulong Find_Drc(const string& drc_name, FIND_DATAW& result) override {
 
 			HANDLE Drc_Handle = FindFirstFileW(drc_name, result);
@@ -1131,21 +1202,6 @@ namespace COMMON_DEFINE {
 			else {
 
 				FindClose(Drc_Handle);
-
-				return ERROR_SUCCESS;
-			}
-		}
-
-		virtual inline ulong Create_Folder(const string& folder_name) override {
-
-			SECURITY_ATTRIBUTES Atr = {};
-
-			if (CreateDirectoryW(folder_name, Atr) == 0) {
-
-				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_ROOT_DRC);
-			}
-
-			else {
 
 				return ERROR_SUCCESS;
 			}
@@ -1191,6 +1247,8 @@ namespace COMMON_DEFINE {
 
 #endif
 
+	public:
+
 		FILE_MANAGER_USE() {
 
 			Handle.Error = INVALID_HANDLE_VALUE;
@@ -1200,32 +1258,23 @@ namespace COMMON_DEFINE {
 			File_Size.Error = 0;
 			File_Size.Lang = 0;
 			File_Size.Vis = 0;
+
+			Now_File_Lock_Initialization();
 		}
 
 		~FILE_MANAGER_USE() {
 
-			if (Handle.Error != INVALID_HANDLE_VALUE && Handle.Error != NULL) {
+			Unlock_File(Handle.Error, File_Size.Error);
+			Close_File(Handle.Error);
 
-				Unlock_File(Handle.Error, File_Size.Error);
-				Close_File(Handle.Error);
-			}
+			Unlock_File(Handle.Vis, File_Size.Vis);
+			Close_File(Handle.Vis);
 
-			if (Handle.Vis != INVALID_HANDLE_VALUE && Handle.Vis != NULL) {
-
-				Unlock_File(Handle.Vis, File_Size.Vis);
-				Close_File(Handle.Vis);
-			}
-
-			if (Handle.Lang != INVALID_HANDLE_VALUE && Handle.Lang != NULL) {
-
-				Unlock_File(Handle.Lang, File_Size.Lang);
-				Close_File(Handle.Lang);
-			}
-
-			Handle.Error = NULL;
-			Handle.Lang = NULL;
-			Handle.Vis = NULL;
+			Unlock_File(Handle.Lang, File_Size.Lang);
+			Close_File(Handle.Lang);
 		}
+
+	private:
 
 		inline ulong Create_Root(const string& file_name) {
 
@@ -1355,9 +1404,18 @@ namespace COMMON_DEFINE {
 
 					HANDLE File_Handle = Create_File(Drc);
 
-					if (Error_Code != ERROR_SUCCESS) {
+					if (File_Handle == INVALID_HANDLE_VALUE) {
 
 						return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_ROOT_DRC);
+					}
+
+					Error_Code = File_Initialization(File_Handle);
+
+					Close_File(File_Handle);
+
+					if (Error_Code != ERROR_SUCCESS) {
+
+						return Error_Code;
 					}
 				}
 
@@ -1381,7 +1439,7 @@ namespace COMMON_DEFINE {
 				return Error_Code;
 			}
 
-			CPP_MQH_PLARGE P_Large = {};
+			CPP_MQH_LARGE P_Large = {};
 
 			string File_Path;
 
@@ -1509,7 +1567,7 @@ namespace COMMON_DEFINE {
 				return Error_Code;
 			}
 
-			CPP_MQH_PLARGE P_Large = {};
+			CPP_MQH_LARGE P_Large = {};
 
 			string File_Path;
 
@@ -1637,7 +1695,7 @@ namespace COMMON_DEFINE {
 				return Error_Code;
 			}
 
-			CPP_MQH_PLARGE P_Large = {};
+			CPP_MQH_LARGE P_Large = {};
 
 			string File_Path;
 
@@ -1765,7 +1823,7 @@ namespace COMMON_DEFINE {
 				return Error_Code;
 			}
 
-			CPP_MQH_PLARGE P_Large = {};
+			CPP_MQH_LARGE P_Large = {};
 
 			string File_Path;
 
@@ -1893,7 +1951,7 @@ namespace COMMON_DEFINE {
 				return Error_Code;
 			}
 
-			CPP_MQH_PLARGE P_Large = {};
+			CPP_MQH_LARGE P_Large = {};
 
 			string File_Path;
 
@@ -2021,7 +2079,7 @@ namespace COMMON_DEFINE {
 				return Error_Code;
 			}
 
-			CPP_MQH_PLARGE P_Large = {};
+			CPP_MQH_LARGE P_Large = {};
 
 			string File_Path;
 
