@@ -74,7 +74,10 @@ namespace COMMON_DEFINE {
 		CUSTOM_ERROR_CODE_FRAUD_CALL_NEW_PROCCESS,            //57
 		CUSTOM_ERROR_CODE_FILED_GET_ERROR_CODE_VALUE,         //58
 		CUSTOM_ERROR_CODE_FRAUD_ERROR_CODE,                   //59
-		CUSTOM_ERROR_CODE_MAX_VALUE                           //60
+		CUSTOM_ERROR_CODE_FILED_EXE_FILE,                     //60
+		CUSTOM_ERROR_CODE_FILED_LOG_DRC_TOTAL_BYTE_SIZE,      //61
+		CUSTOM_ERROR_CODE_FILED_LOG_DELETED,                  //62
+		CUSTOM_ERROR_CODE_MAX_VALUE                           //63
 	};
 
 
@@ -169,6 +172,9 @@ namespace COMMON_DEFINE {
 	const uint ERROR_SUCCESS = 0;
 	const uint ERROR_IO_PENDING = 997L;
 
+	const uint DETACHED_PROCESS = 0x00000008;
+	const uint HIGH_PRIORITY_CLASS = 0x00000080;
+
 #endif
 
 
@@ -212,6 +218,9 @@ namespace COMMON_DEFINE {
 
 	const std::wstring MT5_LANGUAGE_NUM_FILE_NAME = L"\\lang.bin";
 	const std::wstring MT5_LANGUAGE_NUM_FILE_DRC = L"\\lang";
+
+	const std::wstring Error_Ms_Exe_Drc = L"C:\\Users\\okita\\source\\repos\\err_ms\\x64\\Debug\\err_ms.exe";
+	const std::wstring Log_Mng_Exe_Drc = L"C:\\Users\\okita\\source\\repos\\log_mng\\x64\\Debug\\log_mng.exe";
 
 	const std::wstring FIND_ROOT_STRING_ERROR[FIND_ERROR_COUNT] = {
 
@@ -259,6 +268,15 @@ namespace COMMON_DEFINE {
 	const uint GET_MUTEX_WAIT_LOCK_MILLI_SEC = 20;
 
 	const uint CPP_MQH_FILE_SHARE_READ = FILE_SHARE_READ;
+
+#endif
+
+	inline ulong CALC_CUSTOM_ERROR_CODE(ulong custom_err) {
+
+		return custom_err + ERR_USER_ERROR_FIRST;
+	}
+
+#ifdef COMPILER_FOO_CPP
 
 	
 
@@ -340,13 +358,6 @@ namespace COMMON_DEFINE {
 
 
 
-	inline ulong CALC_CUSTOM_ERROR_CODE(ulong custom_err) {
-
-		return custom_err + ERR_USER_ERROR_FIRST;
-	}
-
-
-
 	enum MT5_LANGUAGE_NUMBER
 	{
 		EN,
@@ -354,6 +365,41 @@ namespace COMMON_DEFINE {
 		OTHERS
 	};
 
+	
+	class PROCESS_DATA {
+
+	public:
+
+		struct creation_flags {
+
+			struct Log_Mng {
+
+				uint32_t Detached_Process;
+				uint32_t High_Priority;
+			};
+
+			Log_Mng Log;
+
+			struct Error_Ms {
+
+				uint32_t Detached_Process;
+				uint32_t High_Priority;
+			};
+
+			Error_Ms Error;
+		};
+
+		creation_flags Creation_Flags;
+
+		PROCESS_DATA() {
+
+			Creation_Flags.Error.Detached_Process = DETACHED_PROCESS;
+			Creation_Flags.Error.High_Priority = HIGH_PRIORITY_CLASS;
+
+			Creation_Flags.Log.Detached_Process = DETACHED_PROCESS;
+			Creation_Flags.Log.High_Priority = HIGH_PRIORITY_CLASS;
+		}
+	};
 
 
 	class PROCESS_MANAGER {
@@ -388,17 +434,8 @@ namespace COMMON_DEFINE {
 
 		static ulong Get_Command_Line(std::vector<wchar_t> result[COMMAND_LINE_ASSIGNMENT_NUMBER_TOTAL]) {
 
-#ifdef _DEBUG
-
-			string Debug_Str = Create_Command_Line(L"test.exe", L"test.exe", L"test.h", L"1234", L"1234");
-
-			LPWSTR Full_Cmd_Line = const_cast<LPWSTR>(Debug_Str.c_str());
-
-#else
 
 			LPWSTR Full_Cmd_Line = GetCommandLineW();
-
-#endif
 
 			int Argc;
 			LPWSTR* Argv = CommandLineToArgvW(Full_Cmd_Line, &Argc);
@@ -517,10 +554,10 @@ namespace COMMON_DEFINE {
 
 		static ulong Create_Proccess(
 
-			const CPP_MQH_WCHAR_T           app_name,
-			CPP_MQH_WCHAR_T           command_line,
+			const CPP_MQH_WCHAR_T app_name,
+			CPP_MQH_WCHAR_T       command_line,
 			const uint32_t& creation_flags,
-			const CPP_MQH_WCHAR_T           current_directory) {
+			const CPP_MQH_WCHAR_T current_directory) {
 
 			CPP_MQH_SECURITY_ATTRIBUTES Proccess = {}, Thread = {};
 			PVOID Environment = {};
@@ -553,6 +590,24 @@ namespace COMMON_DEFINE {
 			else {
 
 				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FRAUD_CALL_NEW_PROCCESS);
+			}
+		}
+
+		static ulong Proccess_Boot_File_Exist(const CPP_MQH_WCHAR_T drc) {
+
+			FIND_DATAW Data = {};
+			HANDLE Handle = FindFirstFileW(drc, CPP_MQH_ADDRESS_OF(Data));
+
+			if (Handle == INVALID_HANDLE_VALUE) {
+
+				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FILED_EXE_FILE);
+			}
+
+			else {
+
+				FindClose(Handle);
+
+				return ERROR_SUCCESS;
 			}
 		}
 
