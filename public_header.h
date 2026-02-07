@@ -13,6 +13,72 @@ namespace COMMON_DEFINE {
 
 
 
+	enum Error_Code {
+
+		CUSTOM_ERROR_CODE_NONE_ONLY_EA = 1,                   //1
+		CUSTOM_ERROR_CODE_NONE_DLL_EXIST,                     //2
+		CUSTOM_ERROR_CODE_NONE_TRADW_ALLOWED,                 //3
+		CUSTOM_ERROR_CODE_FAILED_LANGUAGE_SETING,             //4
+		CUSTOM_ERROR_CODE_INPUT_FAILED_STRING_NONE_NUMBER,    //5
+		CUSTOM_ERROR_CODE_INPUT_FAILED_STRING_LENGTH,         //6
+		CUSTOM_ERROR_CODE_INPUT_FAILED_MAX_TRADE,             //7
+		CUSTOM_ERROR_CODE_INPUT_FAILED_WAIT_TIME,             //8
+		CUSTOM_ERROR_CODE_INPUT_FAILED_INDICATOR_VALUE,       //9
+		CUSTOM_ERROR_CODE_INPUT_FAILED_PERCENTAGE_VALUE,      //10
+		CUSTOM_ERROR_CODE_INPUT_FAILED_FIXID_VALUE,           //11
+		CUSTOM_ERROR_CODE_INPUT_FAILED_COMMISION_USD_VALUE,   //12
+		CUSTOM_ERROR_CODE_INPUT_FAILED_GMT_VALUE,             //13
+		CUSTOM_ERROR_CODE_ONTIMRE_NOT_SUCCEDDED,              //14
+		CUSTOM_ERROR_CODE_INPUT_TIME_VALUE_FAILED,            //15
+		CUSTOM_ERROR_CODE_NONE_APP_EXIST,                     //16
+		CUSTOM_ERROR_CODE_NONE_WATCH_WINDOW,                  //17
+		CUSTOM_ERROR_CODE_FAILED_SL_FILE_SIZE,                //18
+		CUSTOM_ERROR_CODE_FRAUD_SL_FILE,                      //19
+		CUSTOM_ERROR_CODE_FAILED_CREATE_ERROR_LOG,            //20
+		CUSTOM_ERROR_CODE_FAILED_OPEN_ERROR_LOG,              //21
+		CUSTOM_ERROR_CODE_FAILED_CREATE_CURRENT_LOG,          //22
+		CUSTOM_ERROR_CODE_FAILED_OPEN_CURRENT_LOG,            //23
+		CUSTOM_ERROR_CODE_FAILED_WRITE_ERROR_LOG,             //24
+		CUSTOM_ERROR_CODE_FAILED_WRITE_CURRENT_LOG,           //25
+		CUSTOM_ERROR_CODE_INPUT_TIME_SET_OR_UNSET_FAILED,     //26
+		CUSTOM_ERROR_CODE_INPUT_TIME_DATE_CHANGE_TIME_FAILED, //27
+		CUSTOM_ERROR_CODE_ERROR_LOG_DELETED,                  //28
+		CUSTOM_ERROR_CODE_CURRENT_LOG_DELETED,                //29
+		CUSTOM_ERROR_CODE_FAILED_APP_BOOT,                    //30
+		CUSTOM_ERROR_CODE_FAILED_SL_FILE_CREATE,              //31
+		CUSTOM_ERROR_CODE_FAILED_SL_FILE_OPEN,                //32
+		CUSTOM_ERROR_CODE_FAILED_SL_FILE_ACCESS,              //33
+		CUSTOM_ERROR_CODE_NONE_ERROR_NUM_FILE,                //34
+		CUSTOM_ERROR_CODE_NONE_MT5_LANGUAGE_FILE,             //35
+		CUSTOM_ERROR_CODE_NONE_VISIBLE_ERROR_NUM_FILE,        //36
+		CUSTOM_ERROR_CODE_UNKNOWN_ERROR,                      //37
+		CUSTOM_ERROR_CODE_FRAUD_FILE_SIZE,                    //38
+		CUSTOM_ERROR_CODE_FAILED_GET_DAY_LOG_DRC,             //39
+		CUSTOM_ERROR_CODE_FAILED_GET_LOCAL_APP_DRC,           //40
+		CUSTOM_ERROR_CODE_FAILED_CREATE_LOG_DRC,              //41
+		CUSTOM_ERROR_CODE_FAILED_OPEN_FILE,                   //42
+		CUSTOM_ERROR_CODE_FAILED_READ_FILE_BYTE_SIZE,         //43
+		CUSTOM_ERROR_CODE_FAILED_WRITE_FILE_BYTE_SIZE,        //44
+		CUSTOM_ERROR_CODE_FAILED_FILE_LOCK,                   //45
+		CUSTOM_ERROR_CODE_FAILED_FILE_UNLOCK,                 //46
+		CUSTOM_ERROR_CODE_FAILED_LOG_NONE_GET_UNKNOWN_TIME,   //47
+		CUSTOM_ERROR_CODE_FAILED_CORRECT_ALIGNMENT,           //48
+		CUSTOM_ERROR_CODE_FAILED_UNAVAILABLE_HANDLE_VALUE,    //49
+		CUSTOM_ERROR_CODE_FAILED_GET_LOCAL_APP_DATA,          //50
+		CUSTOM_ERROR_CODE_FAILED_GET_FULL_PATH,               //51
+		CUSTOM_ERROR_CODE_FAILED_FILE_ROOT_DRC,               //52
+		CUSTOM_ERROR_CODE_FAILED_FILE_LOCK_ONE,               //53
+		CUSTOM_ERROR_CODE_FAILED_GET_FILE_TIME,               //54
+		CUSTOM_ERROR_CODE_FAILED_FILE_WRITE_FLASH,            //55
+		CUSTOM_ERROR_CODE_FRAUD_COMMAND_LINE_VALUE,           //56
+		CUSTOM_ERROR_CODE_FRAUD_CALL_NEW_PROCCESS,            //57
+		CUSTOM_ERROR_CODE_FILED_GET_ERROR_CODE_VALUE,         //58
+		CUSTOM_ERROR_CODE_FRAUD_ERROR_CODE,                   //59
+		CUSTOM_ERROR_CODE_MAX_VALUE                           //60
+	};
+
+
+
 	///////////////////////////////////////////////////////////
 	//
 	// MQL5ópÇÃãLèq
@@ -184,6 +250,7 @@ namespace COMMON_DEFINE {
 	const std::wstring COMMAND_LINE_ESCAPE = L"\"";
 
 	const std::wstring MUTEX_GLOBAL_NAME_LOG_PROCESS = L"Global\\ReturnSafety_CONTROL_Log_Mutex";
+	const std::wstring MUTEX_GLOBAL_NAME_ERROR_PROCESS = L"Global\\ReturnSafety_CONTROL_Error_Mutex";
 
 	const uint ERR_USER_ERROR_FIRST = 65536;
 
@@ -208,96 +275,50 @@ namespace COMMON_DEFINE {
 
 		return SetLastError(ERROR_SUCCESS);
 	}
+
+
+	static unsigned __int64 Get_Local_App_Drc(std::wstring& result) {
+
+		PWSTR path = nullptr;
+
+		if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &path))) {
+
+			result = path;
+			CoTaskMemFree(path);
+
+			return ERROR_SUCCESS;
+		}
+
+		else {
+
+			return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_GET_LOCAL_APP_DATA);
+		}
+	}
+
+
+	static ulong Select_Error_Code(const ulong& error_code, const ulong& visible_error) {
+
+		if (error_code == ERROR_SUCCESS) {
+
+			return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FRAUD_ERROR_CODE);
+		}
+
+		else {
+
+			if (visible_error == ERROR_SUCCESS) {
+
+				return error_code;
+			}
+
+			else {
+
+				return visible_error;
+			}
+		}
+	}
 	
 
-#ifdef COMPILER_FOO_CPP_ERR_MS_EXE
-
-
-	using CPP_MQH_VARIABLE_DATA_TYPE = ulong;
-	using CPP_MQH_VARIABLE_WRITE_DATA = ulong;
-
 #endif
-
-#ifdef COMPILER_FOO_CPP_LOG_MNG_EXE
-
-
-
-	const std::wstring LOG_MNG_CURRENT_LOG_FILE_NAME = L"current_log.log";
-	const std::wstring LOG_MNG_CURRENT_LOG_FILE_DRC = L"\\log\\current\\log\\";
-
-	const std::wstring LOG_MNG_LOG_FILE_NAME = L"log.log";
-	const std::wstring LOG_MNG_LOG_FILE_DRC = L"\\log\\";
-	
-	const std::wstring LOG_FILE_BEGIN_VALUE_COLON = L":";
-
-
-
-	const uint LOG_FILE_MAX_BYTE_SIZE = 5242880;
-#endif
-
-#endif
-
-
-
-	const uint CUSTOM_ERROR_CODE_NONE_ONLY_EA = 1;
-	const uint CUSTOM_ERROR_CODE_NONE_DLL_EXIST = 2;
-	const uint CUSTOM_ERROR_CODE_NONE_TRADW_ALLOWED = 3;
-	const uint CUSTOM_ERROR_CODE_FAILED_LANGUAGE_SETING = 4;
-	const uint CUSTOM_ERROR_CODE_INPUT_FAILED_STRING_NONE_NUMBER = 5;
-	const uint CUSTOM_ERROR_CODE_INPUT_FAILED_STRING_LENGTH = 6;
-	const uint CUSTOM_ERROR_CODE_INPUT_FAILED_MAX_TRADE = 7;
-	const uint CUSTOM_ERROR_CODE_INPUT_FAILED_WAIT_TIME = 8;
-	const uint CUSTOM_ERROR_CODE_INPUT_FAILED_INDICATOR_VALUE = 9;
-	const uint CUSTOM_ERROR_CODE_INPUT_FAILED_PERCENTAGE_VALUE = 10;
-	const uint CUSTOM_ERROR_CODE_INPUT_FAILED_FIXID_VALUE = 11;
-	const uint CUSTOM_ERROR_CODE_INPUT_FAILED_COMMISION_USD_VALUE = 12;
-	const uint CUSTOM_ERROR_CODE_INPUT_FAILED_GMT_VALUE = 13;
-	const uint CUSTOM_ERROR_CODE_ONTIMRE_NOT_SUCCEDDED = 14;
-	const uint CUSTOM_ERROR_CODE_INPUT_TIME_VALUE_FAILED = 15;
-	const uint CUSTOM_ERROR_CODE_NONE_APP_EXIST = 16;
-	const uint CUSTOM_ERROR_CODE_NONE_WATCH_WINDOW = 17;
-	const uint CUSTOM_ERROR_CODE_FAILED_SL_FILE_SIZE = 18;
-	const uint CUSTOM_ERROR_CODE_FRAUD_SL_FILE = 19;
-	const uint CUSTOM_ERROR_CODE_FAILED_CREATE_ERROR_LOG = 20;
-	const uint CUSTOM_ERROR_CODE_FAILED_OPEN_ERROR_LOG = 21;
-	const uint CUSTOM_ERROR_CODE_FAILED_CREATE_CURRENT_LOG = 22;
-	const uint CUSTOM_ERROR_CODE_FAILED_OPEN_CURRENT_LOG = 23;
-	const uint CUSTOM_ERROR_CODE_FAILED_WRITE_ERROR_LOG = 24;
-	const uint CUSTOM_ERROR_CODE_FAILED_WRITE_CURRENT_LOG = 25;
-	const uint CUSTOM_ERROR_CODE_INPUT_TIME_SET_OR_UNSET_FAILED = 26;
-	const uint CUSTOM_ERROR_CODE_INPUT_TIME_DATE_CHANGE_TIME_FAILED = 27;
-	const uint CUSTOM_ERROR_CODE_ERROR_LOG_DELETED = 28;
-	const uint CUSTOM_ERROR_CODE_CURRENT_LOG_DELETED = 29;
-	const uint CUSTOM_ERROR_CODE_FAILED_APP_BOOT = 30;
-	const uint CUSTOM_ERROR_CODE_FAILED_SL_FILE_CREATE = 31;
-	const uint CUSTOM_ERROR_CODE_FAILED_SL_FILE_OPEN = 32;
-	const uint CUSTOM_ERROR_CODE_FAILED_SL_FILE_ACCESS = 33;
-	const uint CUSTOM_ERROR_CODE_NONE_ERROR_NUM_FILE = 34;
-	const uint CUSTOM_ERROR_CODE_NONE_MT5_LANGUAGE_FILE = 35;
-	const uint CUSTOM_ERROR_CODE_NONE_VISIBLE_ERROR_NUM_FILE = 36;
-	const uint CUSTOM_ERROR_CODE_UNKNOWN_ERROR = 37;
-	const uint CUSTOM_ERROR_CODE_FRAUD_FILE_SIZE = 38;
-	const uint CUSTOM_ERROR_CODE_FAILED_GET_DAY_LOG_DRC = 39;
-	const uint CUSTOM_ERROR_CODE_FAILED_GET_LOCAL_APP_DRC = 40;
-	const uint CUSTOM_ERROR_CODE_FAILED_CREATE_LOG_DRC = 41;
-	const uint CUSTOM_ERROR_CODE_FAILED_OPEN_FILE = 42;
-	const uint CUSTOM_ERROR_CODE_FAILED_READ_FILE_BYTE_SIZE = 43;
-	const uint CUSTOM_ERROR_CODE_FAILED_WRITE_FILE_BYTE_SIZE = 44;
-	const uint CUSTOM_ERROR_CODE_FAILED_FILE_LOCK = 45;
-	const uint CUSTOM_ERROR_CODE_FAILED_FILE_UNLOCK = 46;
-	const uint CUSTOM_ERROR_CODE_FAILED_LOG_NONE_GET_UNKNOWN_TIME = 47;
-	const uint CUSTOM_ERROR_CODE_FAILED_CORRECT_ALIGNMENT = 48;
-	const uint CUSTOM_ERROR_CODE_FAILED_UNAVAILABLE_HANDLE_VALUE = 49;
-	const uint CUSTOM_ERROR_CODE_FAILED_GET_LOCAL_APP_DATA = 50;
-	const uint CUSTOM_ERROR_CODE_FAILED_GET_FULL_PATH = 51;
-	const uint CUSTOM_ERROR_CODE_FAILED_FILE_ROOT_DRC = 52;
-	const uint CUSTOM_ERROR_CODE_FAILED_FILE_LOCK_ONE = 53;
-	const uint CUSTOM_ERROR_CODE_FAILED_GET_FILE_TIME = 54;
-	const uint CUSTOM_ERROR_CODE_FAILED_FILE_WRITE_FLASH = 55;
-	const uint CUSTOM_ERROR_CODE_FRAUD_COMMAND_LINE_VALUE = 56;
-	const uint CUSTOM_ERROR_CODE_FRAUD_CALL_NEW_PROCCESS = 57;
-
-	const uint CUSTOM_ERROR_CODE_MAX_VALUE = (58 + ERR_USER_ERROR_FIRST);
 
 	const uint TIME_SCALE_PREMISE_YEAR = 1900;
 	const uint TIME_SCALE_MOON_RETOUCH_VALUE = 1;
@@ -316,6 +337,7 @@ namespace COMMON_DEFINE {
 	const ulong MT5_LANGUAGE_NUM_FILE_SIZE = sizeof(ulong);
 	const ulong ERR_MS_ERR_NUM_FILE_SIZE = sizeof(ulong);
 	const ulong ERR_MS_VISIBLE_ERR_NUM_FILE_SIZE = sizeof(ulong);
+
 
 
 	inline ulong CALC_CUSTOM_ERROR_CODE(ulong custom_err) {
@@ -366,7 +388,17 @@ namespace COMMON_DEFINE {
 
 		static ulong Get_Command_Line(std::vector<wchar_t> result[COMMAND_LINE_ASSIGNMENT_NUMBER_TOTAL]) {
 
+#ifdef _DEBUG
+
+			string Debug_Str = Create_Command_Line(L"test.exe", L"test.exe", L"test.h", L"1234", L"1234");
+
+			LPWSTR Full_Cmd_Line = const_cast<LPWSTR>(Debug_Str.c_str());
+
+#else
+
 			LPWSTR Full_Cmd_Line = GetCommandLineW();
+
+#endif
 
 			int Argc;
 			LPWSTR* Argv = CommandLineToArgvW(Full_Cmd_Line, &Argc);
@@ -565,21 +597,29 @@ namespace COMMON_DEFINE {
 
 		DATA_TYPE_MEMORY_MAP Data;
 
-		bool Now_File_Lock;
+		struct FILE_LOCK_VALUE {
+
+			bool Now_File_Lock;
+
+			FILE_LOCK_VALUE() { Now_File_Lock = false; };
+		};
+
+		FILE_LOCK_VALUE Lock_value;
+
 
 		void Now_File_Lock_Initialization() {
 
-			Now_File_Lock = false;
+			Lock_value.Now_File_Lock = false;
 		}
 
 		bool Get_Now_File_Lock() {
 
-			return Now_File_Lock;
+			return Lock_value.Now_File_Lock;
 		}
 
 		void Set_Now_File_Lock(const bool& value) {
 
-			Now_File_Lock = value;
+			Lock_value.Now_File_Lock = value;
 		}
 
 		ulong File_Lock_Only_1() {
