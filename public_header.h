@@ -80,7 +80,8 @@
 		CUSTOM_ERROR_CODE_FAILED_POSITION_CLOSE,              //64
 		CUSTOM_ERROR_CODE_FAILED_GET_FILE_NAME,               //65
 		CUSTOM_ERROR_CODE_FAILED_FILE_EXIST,                  //66
-		CUSTOM_ERROR_CODE_MAX_VALUE                           //67
+		CUSTOM_ERROR_CODE_CREATE_NEW_FILE,                    //67
+		CUSTOM_ERROR_CODE_MAX_VALUE                           //68
 	};
 
 
@@ -306,9 +307,7 @@
 
 	const uint COMMAND_LINE_ASSIGNMENT_NUMBER_TOTAL = 5;
 
-	const ulong MT5_LANGUAGE_NUM_FILE_SIZE = sizeof(ulong);
-	const ulong ERR_MS_ERR_NUM_FILE_SIZE = sizeof(ulong);
-	const ulong ERR_MS_VISIBLE_ERR_NUM_FILE_SIZE = sizeof(ulong);
+	const ulong ULONG_VALUE_FILE_SIZE = sizeof(ulong);
 	const ulong MAX_LOG_FILE_SIZE = 2097152;
 
 
@@ -599,7 +598,7 @@
 
 			if (Handle == INVALID_HANDLE_VALUE) {
 
-				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_NONE_APP_EXIST);
+				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_APP_EXIST);
 			}
 
 			else {
@@ -671,7 +670,7 @@
 			System_File_Name = NULL_STRING;
 		}
 
-		inline void Set_System_Error(const ulong& error,const ulong& visiable, const uint& line, const string& file_name) {
+		inline void Set_System_Error(const ulong error,const ulong visiable, const uint line, const string file_name) {
 
 			System_Error = error;
 			System_Visiable = visiable;
@@ -732,13 +731,336 @@
 		}
 	};
 
-#ifdef COMPILER_FOO_CPP
 
-	class LOG_MANAGER_BASE : public SYSTEM_ERROR_VALUE {
 
-	private:
 
-		void Close_File(HANDLE& file_handle) {
+	class FILE_MANAGER_BASE : public SYSTEM_ERROR_VALUE {
+
+	protected:
+
+		struct FILE_LOCK_VALUE {
+
+			bool Now_File_Lock;
+
+			FILE_LOCK_VALUE() { Now_File_Lock = false; };
+		};
+
+		FILE_LOCK_VALUE Lock_value;
+
+
+		void Now_File_Lock_Initialization() {
+
+			Lock_value.Now_File_Lock = false;
+		}
+
+		bool Get_Now_File_Lock() {
+
+			return Lock_value.Now_File_Lock;
+		}
+
+		void Set_Now_File_Lock(const bool& value) {
+
+			Lock_value.Now_File_Lock = value;
+		}
+
+		ulong File_Lock_Only_1() {
+
+			if (Get_Now_File_Lock()) {
+
+				string File_Name;
+
+				ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
+
+				if (Error_Code != ERROR_SUCCESS)
+					return Error_Code;
+
+				Set_System_Error(
+
+					CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_LOCK_ONE),
+					CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_LOCK_ONE),
+					__LINE__,
+					File_Name);
+
+
+				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_LOCK_ONE);
+			}
+
+			else {
+
+				return ERROR_SUCCESS;
+			}
+		}
+
+		inline ulong File_Write_Flash(const HANDLE& file_handle) {
+
+			if (!FlushFileBuffers(file_handle)) {
+
+				string File_Name;
+
+				ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
+
+				if (Error_Code != ERROR_SUCCESS)
+					return Error_Code;
+
+				Set_System_Error(
+
+					CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_WRITE_FLASH),
+					GetWin32LastError(),
+					__LINE__,
+					File_Name);
+
+				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_WRITE_FLASH);
+			}
+
+			return ERROR_SUCCESS;
+		}
+
+		virtual inline ulong Get_Local_App_Data(string& result) {
+
+			return 0;
+		}
+
+		virtual inline ulong Get_QuadPart_Cpp_Mqh(const CPP_MQH_LARGE& source) {
+
+			return 0;
+		}
+
+		inline uint32_t FILE_LOCK_MASK_LOW(const ulong& file_data) {
+
+			return (uint32_t)(file_data & 0xFFFFFFFF);
+		}
+
+		inline uint32_t FILE_LOCK_MASK_HIGH(const ulong& file_data) {
+
+			return (uint32_t)(file_data >> 32);
+		}
+
+		virtual inline ulong File_Read(const HANDLE& file_handle) {
+
+			return 0;
+		}
+
+		virtual inline ulong File_Write(const HANDLE& file_handle) {
+
+			return 0;
+		}
+
+		virtual inline HANDLE Create_File(const string& file_name) {
+
+			return 0;
+		}
+
+		inline ulong Get_Full_Path(const string& control_drc, const string& file_drc, const string& file_name,string& result) {
+
+			ulong Error_Code = Get_Local_App_Data(result);
+
+			if (Error_Code != ERROR_SUCCESS) {
+
+				return Error_Code;
+			}
+
+			else {
+
+				if (!StringAdd(result, control_drc) ||
+					!StringAdd(result, file_drc) ||
+					!StringAdd(result, file_name)) {
+
+					string File_Name;
+
+					ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
+
+					if (Error_Code != ERROR_SUCCESS)
+						return Error_Code;
+
+					Set_System_Error(
+
+						CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_GET_DRC),
+						GetLastError(),
+						__LINE__,
+						File_Name);
+
+
+					return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_GET_DRC);
+				}
+
+				else {
+
+					return ERROR_SUCCESS;
+				}
+			}
+		}
+
+		inline ulong Open_File(HANDLE& file_handle, const string file_name, CPP_MQH_LARGE& result_file_size) {
+
+			file_handle = Create_File(file_name);
+
+			if (file_handle == INVALID_HANDLE_VALUE) {
+
+				string File_Name;
+
+				ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
+
+				if (Error_Code != ERROR_SUCCESS)
+					return Error_Code;
+
+				Set_System_Error(
+
+					CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_OPEN_FILE),
+					GetWin32LastError(),
+					__LINE__,
+					File_Name);
+
+
+				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_OPEN_FILE);
+			}
+
+
+			else {
+
+
+				if (GetWin32LastError() == ERROR_SUCCESS) {
+
+					return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_CREATE_NEW_FILE);
+				}
+
+				if (!GetFileSizeEx(file_handle, CPP_MQH_ADDRESS_OF(result_file_size))) {
+
+					CloseHandle(file_handle);
+
+					string File_Name;
+
+					ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
+
+					if (Error_Code != ERROR_SUCCESS)
+						return Error_Code;
+
+					Set_System_Error(
+
+						CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_GET_FILE_SIZE),
+						GetWin32LastError(),
+						__LINE__,
+						File_Name);
+
+
+					return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_GET_FILE_SIZE);
+				}
+
+				else {
+
+					Set_Now_File_Lock(true);
+
+					return ERROR_SUCCESS;
+				}
+			}
+		}
+
+		virtual inline ulong Check_File_Size(const ulong& byte_size, const CPP_MQH_LARGE& file_size) {
+
+			return 0;
+		};
+
+
+		inline ulong Unlock_File(const HANDLE& file_handle, const ulong& byte_size) {
+
+			OVERLAPPED Ov_R = {};
+			uint LockLow = FILE_LOCK_MASK_LOW(byte_size);
+			uint LockHigh = FILE_LOCK_MASK_HIGH(byte_size);
+
+			if (!UnlockFileEx(file_handle, 0, LockLow, LockHigh, CPP_MQH_ADDRESS_OF(Ov_R))) {
+
+				if (GetWin32LastError() == ERROR_NOT_LOCKED)
+					return ERROR_SUCCESS;
+
+				else {
+
+					string File_Name;
+
+					ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
+
+					if (Error_Code != ERROR_SUCCESS)
+						return Error_Code;
+
+					Set_System_Error(
+
+						CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_UNLOCK),
+						GetWin32LastError(),
+						__LINE__,
+						File_Name);
+
+
+					return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_UNLOCK);
+				}
+			}
+
+			else {
+
+				return ERROR_SUCCESS;
+			}
+		}
+
+		inline ulong Lock_File(const HANDLE& file_handle, const ulong& file_size) {
+
+			OVERLAPPED Ov_R = {};
+
+			uint LockLow = FILE_LOCK_MASK_LOW(file_size);
+			uint LockHigh = FILE_LOCK_MASK_HIGH(file_size);
+
+			if (!LockFileEx(file_handle, LOCKFILE_EXCLUSIVE_LOCK, 0, LockLow, LockHigh, CPP_MQH_ADDRESS_OF(Ov_R))) {
+
+				string File_Name;
+
+				ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
+
+				if (Error_Code != ERROR_SUCCESS)
+					return Error_Code;
+
+				Set_System_Error(
+
+					CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_LOCK),
+					GetWin32LastError(),
+					__LINE__,
+					File_Name);
+
+
+				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_LOCK);
+			}
+
+			else {
+
+				return ERROR_SUCCESS;
+			}
+		}
+
+		inline ulong Try_Lock_File(const HANDLE& file_handle, const ulong& file_size) {
+
+			ulong result = 0;
+
+			for (uint i = 0; i < TRY_FILE_LOCK_COUNTER; i++) {
+
+				result = Lock_File(file_handle, file_size);
+
+				if (result == ERROR_SUCCESS) {
+
+					return ERROR_SUCCESS;
+				}
+
+				Sleep(SLEEP_MILLI_SECOND_VALUE);
+			}
+
+			return result;
+		}
+
+		virtual inline ulong Create_Folder(const string& folder_name) {
+
+			return 0;
+		}
+
+		virtual inline ulong Find_Drc(const string& drc_name, FIND_DATAW& result) {
+
+			return 0;
+		}
+
+		inline void Close_File(HANDLE& file_handle) {
 
 			if (file_handle != INVALID_HANDLE_VALUE && file_handle != NULL) {
 
@@ -747,13 +1069,396 @@
 				file_handle = NULL;
 			}
 		}
+	};
 
-		std::time_t Get_Time() {
+	class BYTE8_FILE_MANAGER_BASE :public FILE_MANAGER_BASE {
+
+	protected:
+
+		union DATA_TYPE_MEMORY_MAP {
+
+			ulong Value;
+			ushort Data_To_Binary[sizeof(ulong) / sizeof(ushort)];
+
+			DATA_TYPE_MEMORY_MAP() { Value = 0; }
+		};
+
+
+		DATA_TYPE_MEMORY_MAP Data;
+
+		inline ulong File_Initialization(const HANDLE& handle) {
+
+			CPP_MQH_LARGE Move_P = {}, Result_P = {};
+
+			if (!SetFilePointerEx(handle, Move_P, CPP_MQH_ADDRESS_NULL(Result_P), FILE_BEGIN)) {
+
+				string File_Name;
+
+				ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
+
+				if (Error_Code != ERROR_SUCCESS)
+					return Error_Code;
+
+				Set_System_Error(
+
+					CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_INIT),
+					GetWin32LastError(),
+					__LINE__,
+					File_Name);
+
+
+				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_INIT);
+			}
+
+			else {
+
+				Data.Value = 0;
+
+				DWORD Write_Size = 0;
+
+				ulong Error_Code = File_Write(handle);
+
+				if (Error_Code != ERROR_SUCCESS) {
+
+					return Error_Code;
+				}
+
+				else {
+
+					Error_Code = File_Write_Flash(handle);
+
+					if (Error_Code != ERROR_SUCCESS) {
+
+						return Error_Code;
+					}
+
+					return ERROR_SUCCESS;
+				}
+			}
+		}
+
+		inline ulong Get_File_Last_Write_Time(const HANDLE& file_handle, ulong& result) {
+
+			FILETIME Create = {}, Access = {}, Write = {};
+
+			if (!GetFileTime(file_handle, CPP_MQH_ADDRESS_NULL(Create), CPP_MQH_ADDRESS_NULL(Access), CPP_MQH_ADDRESS_OF(Write))) {
+
+				string File_Name;
+
+				ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
+
+				if (Error_Code != ERROR_SUCCESS)
+					return Error_Code;
+
+				Set_System_Error(
+
+					CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_GET_FILE_TIME),
+					GetWin32LastError(),
+					__LINE__,
+					File_Name);
+
+
+				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_GET_FILE_TIME);
+			}
+
+			result = ((ulong)Write.dwHighDateTime << 32) | Write.dwLowDateTime;
+
+			return ERROR_SUCCESS;
+		}
+
+		
+		virtual inline ulong Get_Read_Data() {
+
+			return 0;
+		}
+
+		virtual inline ulong Check_File_Size(const ulong& byte_size, const CPP_MQH_LARGE& file_size) override {
+
+
+			ulong To_Size = Get_QuadPart_Cpp_Mqh(file_size);
+
+			if (byte_size != To_Size) {
+
+				string File_Name;
+
+				ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
+
+				if (Error_Code != ERROR_SUCCESS)
+					return Error_Code;
+
+				Set_System_Error(
+
+					CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FRAUD_FILE_SIZE),
+					CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FRAUD_FILE_SIZE),
+					__LINE__,
+					File_Name);
+
+
+				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FRAUD_FILE_SIZE);
+			}
+
+			else {
+
+				return ERROR_SUCCESS;
+			}
+		};
+
+		
+		inline ulong Reset_File_Pointer(const HANDLE& file_handle) {
+
+			CPP_MQH_LARGE Move_P = {}, result_P = {};
+
+			if (!SetFilePointerEx(file_handle, Move_P, CPP_MQH_ADDRESS_NULL(result_P), FILE_BEGIN)) {
+
+				string File_Name;
+
+				ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
+
+				if (Error_Code != ERROR_SUCCESS)
+					return Error_Code;
+
+				Set_System_Error(
+
+					CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_POINTER_SET),
+					GetWin32LastError(),
+					__LINE__,
+					File_Name);
+
+
+				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_POINTER_SET);
+			}
+
+			else {
+
+				return ERROR_SUCCESS;
+			}
+		}
+
+	public:
+
+		inline ulong Alignment_Checker() {
+
+			if (sizeof(Data) != sizeof(ulong)) {
+
+				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_CORRECT_ALIGNMENT);
+			}
+			else {
+
+				return ERROR_SUCCESS;
+			}
+		}
+
+
+		virtual inline void Set_Write_Data(const ulong data) {
+
+
+		}
+	};
+
+#ifdef COMPILER_FOO_CPP
+
+
+	class LOG_MANAGER_BASE : public FILE_MANAGER_BASE {
+
+	protected:
+
+		struct LOG_FILE_ENTRY {
+
+			string Full_Path;
+
+			WIN32_FIND_DATAW Find_Data;
+		};
+
+		string Log_Data;
+
+		LOG_MANAGER_BASE() {
+
+			Log_Data = NULL_STRING;
+		} 
+
+		unsigned __int64 Get_Current_Time(std::tm& result, WORD& milli_sec) {
+
+			SYSTEMTIME System_Milli_Sec;
+
+			GetLocalTime(&System_Milli_Sec);
+
+			milli_sec = System_Milli_Sec.wMilliseconds;
+
+			std::time_t Current_Sec = std::time(nullptr);
+
+			errno_t err = localtime_s(&result, &Current_Sec);
+
+			if (err != 0)
+				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_LOG_NONE_GET_UNKNOWN_TIME);
+
+			return ERROR_SUCCESS;
+		}
+
+		
+		std::wstring Format_Log_Line(const ulong& error, const std::wstring& file, uint line) {
+
+			std::tm Current_Time;
+
+			WORD Milli_Sec;
+
+			Get_Current_Time(Current_Time, Milli_Sec);
+
+			wchar_t Buf[1024];
+
+			swprintf_s(Buf, L"[%04d/%02d/%02d %02d:%02d:%02d.%03d] [%d] [%s:%d] \n",
+
+				Current_Time.tm_year + 1900, Current_Time.tm_mon + 1, Current_Time.tm_mday,
+				Current_Time.tm_hour, Current_Time.tm_min, Current_Time.tm_sec, Milli_Sec,
+
+				error, file.c_str(), line);
+
+			return Buf;
+		}
+
+		unsigned __int64 Get_Directory_Total_Size(const std::wstring& dir_path, unsigned __int64& total_result) {
+
+			WIN32_FIND_DATAW Find_Data;
+
+			std::wstring Search_Path = dir_path + L"\\*";
+
+			HANDLE h_Find = FindFirstFileW(Search_Path.c_str(), &Find_Data);
+
+			if (h_Find == INVALID_HANDLE_VALUE)
+				return ERROR_SUCCESS;
+
+			do {
+
+				std::wstring_view Name = Find_Data.cFileName;
+
+				if (Name == L"." || Name == L"..")
+					continue;
+
+				std::wstring Full_Path = dir_path + L"\\" + Find_Data.cFileName;
+
+				if (Find_Data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+
+					Get_Directory_Total_Size(Full_Path, total_result);
+				}
+
+				else {
+
+					ULARGE_INTEGER Ularge = {};
+
+					Ularge.LowPart = Find_Data.nFileSizeLow;
+					Ularge.HighPart = Find_Data.nFileSizeHigh;
+					total_result += Ularge.QuadPart;
+				}
+
+			} while (FindNextFileW(h_Find, &Find_Data));
+
+			FindClose(h_Find);
+
+			return ERROR_SUCCESS;
+		}
+
+		// 4. 管理レイヤー：削除候補のリストアップ（フルパス保持バグ修正済み）
+		unsigned __int64 Collect_Old_Logs(const std::wstring& drc, std::vector<LOG_FILE_ENTRY>& list) {
+			WIN32_FIND_DATAW find_data;
+			std::wstring search_path = drc + L"\\*";
+			HANDLE h_find = FindFirstFileW(search_path.c_str(), &find_data);
+
+			if (h_find == INVALID_HANDLE_VALUE) return ERROR_SUCCESS;
+
+			do {
+				std::wstring_view name = find_data.cFileName;
+				if (name == L"." || name == L"..") continue;
+
+				std::wstring full_path = drc + L"\\" + find_data.cFileName;
+
+				if (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+					Collect_Old_Logs(full_path, list);
+				}
+				else {
+					list.push_back({ full_path, find_data });
+				}
+			} while (FindNextFileW(h_find, &find_data));
+
+			FindClose(h_find);
+			return ERROR_SUCCESS;
+		}
+
+		// 5. 管理レイヤー：自己防衛（容量制限とFIFO削除）
+		unsigned __int64 Maintenance_Log_Capacity() {
+			std::wstring root_drc;
+			if (Get_Local_App_Drc(root_drc) != ERROR_SUCCESS) return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_GET_DRC);
+			root_drc += CONTROL_FOLDER_DRC + LOG_FOLDER_DRC;
+
+			unsigned __int64 current_use = 0;
+			Get_Directory_Total_Size(root_drc, current_use);
+
+			// 400MB threshold
+			if (current_use > 419430400) {
+				std::vector<LOG_FILE_ENTRY> files;
+				Collect_Old_Logs(root_drc, files);
+
+				// 更新日時でソート（古い順）
+				std::sort(files.begin(), files.end(), [](const LOG_FILE_ENTRY& a, const LOG_FILE_ENTRY& b) {
+					return CompareFileTime(&a.Find_Data.ftLastWriteTime, &b.Find_Data.ftLastWriteTime) == -1;
+					});
+
+				unsigned __int64 target_to_delete = current_use - 419430400;
+				unsigned __int64 deleted_sum = 0;
+
+				for (const auto& entry : files) {
+					if (deleted_sum >= target_to_delete) break;
+					if (DeleteFileW(entry.Full_Path.c_str())) {
+						ULARGE_INTEGER sz; sz.LowPart = entry.Find_Data.nFileSizeLow; sz.HighPart = entry.Find_Data.nFileSizeHigh;
+						deleted_sum += sz.QuadPart;
+					}
+				}
+			}
+			return ERROR_SUCCESS;
+		}
+
+		// 6. 物理レイヤー：実際の書き込み（Mutex + Lock + Flush の統合）
+		unsigned __int64 Write_Log_Atomic(const std::wstring& full_path, const std::wstring& line_data) {
+			HANDLE mutex_h = INVALID_HANDLE_VALUE;
+			// 名前付きMutexで入り口を保護
+			if (!PROCESS_MANAGER::Trial_Get_Mutex(MUTEX_GLOBAL_NAME_LOG_PROCESS, mutex_h))
+				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_LOCK);
+
+			HANDLE file_h = CreateFileW(full_path.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+			if (file_h == INVALID_HANDLE_VALUE) {
+				PROCESS_MANAGER::Close(mutex_h);
+				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_OPEN_FILE);
+			}
+
+			// 物理ファイルロック
+			if (Lock_File(file_h, 0xFFFFFFFF)) { // 簡易的に全体をロック
+				DWORD written = 0;
+				WriteFile(file_h, line_data.c_str(), (DWORD)(line_data.size() * sizeof(wchar_t)), &written, NULL);
+				File_Write_Flash(file_h); // 即座に物理ディスクへ
+				Unlock_File(file_h, 0xFFFFFFFF);
+			}
+
+			CloseHandle(file_h);
+			PROCESS_MANAGER::Close(mutex_h);
+			return ERROR_SUCCESS;
+		}
+	};
+
+	class LOG_MANAGER_BASE : public FILE_MANAGER_BASE {
+
+	protected:
+
+		string Data;
+
+		LOG_MANAGER_BASE() {
+
+			Data = NULL_STRING;
+		}
+
+		inline std::time_t Get_Time() {
 
 			return std::time(nullptr);
 		}
 
-		unsigned __int64 Get_Current_Time(const std::time_t& unix,std::tm& result) {
+		unsigned __int64 Get_Current_Time(const std::time_t& unix, std::tm& result) {
 
 			errno_t Error_Code = localtime_s(&result, &unix);
 
@@ -780,12 +1485,12 @@
 			result.tm_mon += TIME_SCALE_MOON_RETOUCH_VALUE;
 		}
 
-		bool Get_Time_Text(const std::tm& time,std::wstring& result) {
+		bool Get_Time_Text(const std::tm& time, std::wstring& result) {
 
 			wchar_t buf[64];
 
 			// 型紙の中に / や : を直接入れています
-			int Str_Size = swprintf_s(buf, L"%04d/%02d/%02d %02d:%02d:%02d",
+			int Str_Size = swprintf_s(buf, L"%04d/%02d/%02d %02d:%02d:%02d.%03d",
 
 				time.tm_year, time.tm_mon, time.tm_mday,
 				time.tm_hour, time.tm_min, time.tm_sec);
@@ -819,10 +1524,10 @@
 				return false;
 		}
 
-		unsigned __int64 Get_Day_Log_Root(std::wstring& result,const std::wstring& junction) {
+		unsigned __int64 Get_Day_Log_Root(std::wstring& result, const std::wstring& junction) {
 
 			std::time_t Unix_Time = Get_Time();
-			
+
 			std::tm View_Value = {};
 
 			ulong Error_Code = Get_Current_Time(Unix_Time, View_Value);
@@ -916,9 +1621,9 @@
 			return ERROR_SUCCESS;
 		}
 
-		unsigned __int64 Check_File_Size(const unsigned __int64& file_size) {
+		virtual inline ulong Check_File_Size(const ulong& byte_size, const CPP_MQH_LARGE& file_size) override {
 
-			if (file_size > MAX_LOG_FILE_SIZE) {
+			if (file_size.QuadPart > MAX_LOG_FILE_SIZE) {
 
 				ulong Error = CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FRAUD_FILE_SIZE);
 				ulong Vis = CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FRAUD_FILE_SIZE);
@@ -938,63 +1643,9 @@
 			}
 		}
 
-		unsigned __int64 Lock_File(const HANDLE& file_handle, const unsigned __int64& file_size) {
+		virtual inline HANDLE Create_File(const string& file_name) override {
 
-			OVERLAPPED Ov_R = {};
-
-			unsigned int LockLow = file_size & 0xFFFFFFFF;
-			unsigned int LockHigh = file_size >> 32;
-
-			if (!LockFileEx(file_handle, LOCKFILE_EXCLUSIVE_LOCK, 0, LockLow, LockHigh, &Ov_R)) {
-
-				ulong Error = CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_LOCK);
-				ulong Vis = GetLastError();
-				uint Line = __LINE__;
-				string File_Name;
-
-				Get_File_Name(__FILEW__, File_Name);
-
-				Set_System_Error(Error, Vis, Line, File_Name);
-
-				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_LOCK);
-			}
-
-			else {
-
-				return ERROR_SUCCESS;
-			}
-		}
-
-		unsigned __int64 Unlock_File(const HANDLE& file_handle, const unsigned __int64& byte_size) {
-
-			OVERLAPPED Ov_R = {};
-
-			unsigned int LockLow = byte_size & 0xFFFFFFFF;
-			unsigned int LockHigh = byte_size >> 32;
-
-			if (!UnlockFileEx(file_handle, 0, LockLow, LockHigh, &Ov_R)) {
-
-				ulong Error = CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_UNLOCK);
-				ulong Vis = GetLastError();
-				uint Line = __LINE__;
-				string File_Name;
-
-				Get_File_Name(__FILEW__, File_Name);
-
-				Set_System_Error(Error, Vis, Line, File_Name);
-
-				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_UNLOCK);
-			}
-
-			else {
-
-				return ERROR_SUCCESS;
-			}
-		}
-
-		unsigned __int64 Open_File(const std::wstring& file_name, HANDLE& file_handle, unsigned __int64& result_file_size) {
-
-			file_handle = CreateFileW(
+			return CreateFileW(
 
 				file_name.c_str(),
 				GENERIC_READ | GENERIC_WRITE,
@@ -1002,84 +1653,63 @@
 				NULL,
 				OPEN_ALWAYS,
 				FILE_ATTRIBUTE_NORMAL,
-				NULL
-			);
-
-			if (file_handle == INVALID_HANDLE_VALUE) {
-
-				ulong Error = CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_OPEN_FILE);
-				ulong Vis = GetLastError();
-				uint Line = __LINE__;
-				string File_Name;
-
-				Get_File_Name(__FILEW__, File_Name);
-
-				Set_System_Error(Error, Vis, Line, File_Name);
-
-				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_OPEN_FILE);
-			}
-
-
-			LARGE_INTEGER Get_Size = {};
-
-			if (!GetFileSizeEx(file_handle, &Get_Size)) {
-
-				ulong Error = CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_GET_FILE_SIZE);
-				ulong Vis = GetLastError();
-				uint Line = __LINE__;
-				string File_Name;
-
-				Get_File_Name(__FILEW__, File_Name);
-
-				Set_System_Error(Error, Vis, Line, File_Name);
-
-				CloseHandle(file_handle);
-
-				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_GET_FILE_SIZE);
-			}
-
-			unsigned __int64 Error_Code = Check_File_Size(Get_Size.QuadPart);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				CloseHandle(file_handle);
-
-				return Error_Code;
-			}
-
-			Error_Code = Lock_File(file_handle, Get_Size.QuadPart);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				CloseHandle(file_handle);
-
-				return Error_Code;
-			}
-
-			result_file_size = Get_Size.QuadPart;
-
-			return ERROR_SUCCESS;
+				NULL);
 		}
 
-		unsigned __int64 Write_File(const HANDLE& file_handle, const std::wstring& write_data) {
+		virtual inline ulong File_Write(const HANDLE& file_handle) override {
 
-			DWORD With = 0;
+			DWORD Write_Size = 0;
 
-			if (!WriteFile(file_handle, write_data.c_str(), (DWORD)write_data.size() * sizeof(wchar_t), &With, NULL)) {
+			if (!WriteFile(file_handle, Data.c_str(), (DWORD)Data.size() * sizeof(wchar_t), &Write_Size, NULL)) {
 
-				ulong Error = CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_WRITE);
-				ulong Vis = GetLastError();
-				uint Line = __LINE__;
-				string File_Name;
+				if (GetWin32LastError() == ERROR_IO_PENDING) {
 
-				Get_File_Name(__FILEW__, File_Name);
+					return ERROR_SUCCESS;
+				}
 
-				Set_System_Error(Error, Vis, Line, File_Name);
+				else {
 
-				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_WRITE);
+					ulong Error = CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_WRITE);
+					ulong Vis = GetWin32LastError();
+					uint Line = __LINE__;
+
+					string File_Name;
+
+					ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
+
+					if (Error_Code != ERROR_SUCCESS)
+						return Error_Code;
+
+					Set_System_Error(Error, Vis, Line, File_Name);
+
+
+					return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_WRITE);
+				}
 			}
 
-			return ERROR_SUCCESS;
+			else {
+
+				if ((uint)Write_Size != (DWORD)Data.size() * sizeof(wchar_t)) {
+
+					ulong Error = CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_WRITE_FILE_BYTE_SIZE);
+					ulong Vis = CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_WRITE_FILE_BYTE_SIZE);
+					uint Line = __LINE__;
+
+					string File_Name;
+
+					ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
+
+					if (Error_Code != ERROR_SUCCESS)
+						return Error_Code;
+
+					Set_System_Error(Error, Vis, Line, File_Name);
+
+
+					return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_WRITE_FILE_BYTE_SIZE);
+				}
+
+				return ERROR_SUCCESS;
+			}
 		}
 
 		unsigned __int64 File_Pointer_New_Line(const HANDLE& file_handle) {
@@ -1101,7 +1731,9 @@
 			}
 
 			DWORD With = 0;
-			ulong Error_Code = Write_File(file_handle, LINE_BREAK.c_str());
+
+			Set_Write_Data(LINE_BREAK);
+			ulong Error_Code = File_Write(file_handle);
 
 			if (Error_Code != ERROR_SUCCESS) {
 
@@ -1444,523 +2076,19 @@
 						}
 					}
 				}
-				
+
 			}
 
 			return ERROR_SUCCESS;
+		}
+
+		inline void Set_Write_Data(const string& data) {
+
+			Data = data;
 		}
 	};
 
-#endif
-
-
-	class FILE_MANAGER_BASE : public SYSTEM_ERROR_VALUE {
-
-	protected:
-
-		union DATA_TYPE_MEMORY_MAP {
-
-			ulong Value;
-			ushort Data_To_Binary[sizeof(ulong) / sizeof(ushort)];
-
-			DATA_TYPE_MEMORY_MAP() { Value = 0; }
-		};
-
-
-		DATA_TYPE_MEMORY_MAP Data;
-
-		struct FILE_LOCK_VALUE {
-
-			bool Now_File_Lock;
-
-			FILE_LOCK_VALUE() { Now_File_Lock = false; };
-		};
-
-		FILE_LOCK_VALUE Lock_value;
-
-
-		void Now_File_Lock_Initialization() {
-
-			Lock_value.Now_File_Lock = false;
-		}
-
-		bool Get_Now_File_Lock() {
-
-			return Lock_value.Now_File_Lock;
-		}
-
-		void Set_Now_File_Lock(const bool& value) {
-
-			Lock_value.Now_File_Lock = value;
-		}
-
-		ulong File_Lock_Only_1() {
-
-			if (Get_Now_File_Lock()) {
-
-				ulong Error = CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_LOCK_ONE);
-				ulong Vis= CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_LOCK_ONE);
-				uint Line = __LINE__;
-
-				string File_Name;
-
-				ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
-
-				if (Error_Code != ERROR_SUCCESS)
-					return Error_Code;
-
-				Set_System_Error(Error, Vis, Line, File_Name);
-
-
-				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_LOCK_ONE);
-			}
-
-			else {
-
-				return ERROR_SUCCESS;
-			}
-		}
-
-		inline ulong File_Write_Flash(const HANDLE& file_handle) {
-
-			if (!FlushFileBuffers(file_handle)) {
-
-				ulong Error = CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_WRITE_FLASH);
-				ulong Vis= GetWin32LastError();
-				uint Line = __LINE__;
-
-				string File_Name;
-
-				ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
-
-				if (Error_Code != ERROR_SUCCESS)
-					return Error_Code;
-
-				Set_System_Error(Error, Vis, Line, File_Name);
-
-				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_WRITE_FLASH);
-			}
-
-			return ERROR_SUCCESS;
-		}
-
-		virtual inline ulong Get_Local_App_Data(string& result) {
-
-			return 0;
-		}
-
-		virtual inline ulong Get_QuadPart_Cpp_Mqh(const CPP_MQH_LARGE& source) {
-
-			return 0;
-		}
-
-		inline ulong File_Initialization(const HANDLE& handle) {
-
-			CPP_MQH_LARGE Move_P = {}, Result_P = {};
-
-			if (!SetFilePointerEx(handle, Move_P, CPP_MQH_ADDRESS_NULL(Result_P), FILE_BEGIN)) {
-
-				ulong Error = CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_INIT);
-				ulong Vis= GetWin32LastError();
-				uint Line = __LINE__;
-
-				string File_Name;
-
-				ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
-
-				if (Error_Code != ERROR_SUCCESS)
-					return Error_Code;
-
-				Set_System_Error(Error, Vis, Line, File_Name);
-
-
-				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_INIT);
-			}
-
-			else {
-
-				Data.Value = 0;
-
-				SetLastError(ERROR_SUCCESS);
-
-				DWORD Write_Size = 0;
-
-				ulong Error_Code = File_Write(handle);
-
-				if (Error_Code != ERROR_SUCCESS) {
-
-					return Error_Code;
-				}
-
-				else {
-
-					Error_Code = File_Write_Flash(handle);
-
-					if (Error_Code != ERROR_SUCCESS) {
-
-						return Error_Code;
-					}
-
-					return ERROR_SUCCESS;
-				}
-			}
-		}
-
-		inline uint32_t FILE_LOCK_MASK_LOW(const ulong& file_data) {
-
-			return (uint32_t)(file_data & 0xFFFFFFFF);
-		}
-
-		inline uint32_t FILE_LOCK_MASK_HIGH(const ulong& file_data) {
-
-			return (uint32_t)(file_data >> 32);
-		}
-
-		virtual inline ulong File_Read(const HANDLE& file_handle) {
-
-			return 0;
-		}
-
-		virtual inline ulong File_Write(const HANDLE& file_handle) {
-
-			return 0;
-		}
-
-		virtual inline HANDLE Create_File(const string& file_name) {
-
-			return 0;
-		}
-
-		inline ulong Get_File_Last_Write_Time(const HANDLE& file_handle, ulong& result) {
-
-			FILETIME Create = {}, Access = {}, Write = {};
-
-			if (!GetFileTime(file_handle, CPP_MQH_ADDRESS_NULL(Create), CPP_MQH_ADDRESS_NULL(Access), CPP_MQH_ADDRESS_OF(Write))) {
-
-				ulong Error = CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_GET_FILE_TIME);
-				ulong Vis = GetWin32LastError();
-				uint Line = __LINE__;
-
-				string File_Name;
-
-				ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
-
-				if (Error_Code != ERROR_SUCCESS)
-					return Error_Code;
-
-				Set_System_Error(Error, Vis, Line, File_Name);
-
-
-				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_GET_FILE_TIME);
-			}
-
-			result = ((ulong)Write.dwHighDateTime << 32) | Write.dwLowDateTime;
-
-			return ERROR_SUCCESS;
-		}
-
-		inline ulong Get_Full_Path(const string& control_drc, const string& file_drc, const string& file_name,string& result) {
-
-			ulong Error_Code = Get_Local_App_Data(result);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				return Error_Code;
-			}
-
-			else {
-
-				if (!StringAdd(result, control_drc) ||
-					!StringAdd(result, file_drc) ||
-					!StringAdd(result, file_name)) {
-
-					ulong Error = CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_GET_DRC);
-					ulong Vis= GetLastError();
-					uint Line = __LINE__;
-
-					string File_Name;
-
-					ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
-
-					if (Error_Code != ERROR_SUCCESS)
-						return Error_Code;
-
-				    Set_System_Error(Error, Vis, Line, File_Name);
-
-
-					return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_GET_DRC);
-				}
-
-				else {
-
-					return ERROR_SUCCESS;
-				}
-			}
-		}
-
-		inline ulong Open_File(HANDLE& file_handle, const string file_name, CPP_MQH_LARGE& result_file_size) {
-
-			SetLastError(ERROR_SUCCESS);
-
-			file_handle = Create_File(file_name);
-
-			if (file_handle == INVALID_HANDLE_VALUE) {
-
-				ulong Error = CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_OPEN_FILE);
-				ulong Vis = GetWin32LastError();
-				uint Line = __LINE__;
-
-				string File_Name;
-
-				ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
-
-				if (Error_Code != ERROR_SUCCESS)
-					return Error_Code;
-
-				Set_System_Error(Error, Vis, Line, File_Name);
-
-
-				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_OPEN_FILE);
-			}
-
-
-			else {
-
-
-				if (GetWin32LastError() == ERROR_SUCCESS) {
-
-					ulong Error_Code = File_Initialization(file_handle);
-
-					if (Error_Code != ERROR_SUCCESS) {
-
-						CloseHandle(file_handle);
-
-						return Error_Code;
-					}
-				}
-
-				if (!GetFileSizeEx(file_handle, CPP_MQH_ADDRESS_OF(result_file_size))) {
-
-					CloseHandle(file_handle);
-
-					ulong Error = CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_GET_FILE_SIZE);
-					ulong Vis = GetWin32LastError();
-					uint Line = __LINE__;
-
-					string File_Name;
-
-					ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
-
-					if (Error_Code != ERROR_SUCCESS)
-						return Error_Code;
-
-					Set_System_Error(Error, Vis, Line, File_Name);
-
-
-					return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_GET_FILE_SIZE);
-				}
-
-				else {
-
-					Set_Now_File_Lock(true);
-
-					return ERROR_SUCCESS;
-				}
-			}
-		}
-
-		inline ulong Check_File_Size(const HANDLE& file_handle, const ulong& byte_size, const CPP_MQH_LARGE& file_size) {
-
-
-			ulong To_Size = Get_QuadPart_Cpp_Mqh(file_size);
-
-			if (byte_size != To_Size) {
-
-				ulong Error = CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FRAUD_FILE_SIZE);
-				ulong Vis= CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FRAUD_FILE_SIZE);
-				uint Line = __LINE__;
-
-				string File_Name;
-
-				ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
-
-				if (Error_Code != ERROR_SUCCESS)
-					return Error_Code;
-
-				Set_System_Error(Error, Vis, Line, File_Name);
-
-
-				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FRAUD_FILE_SIZE);
-			}
-
-			else {
-
-				return ERROR_SUCCESS;
-			}
-		};
-
-		virtual inline ulong Get_Read_Data() {
-
-			return 0;
-		}
-
-		inline ulong Unlock_File(const HANDLE& file_handle, const ulong& byte_size) {
-
-			OVERLAPPED Ov_R = {};
-			uint LockLow = FILE_LOCK_MASK_LOW(byte_size);
-			uint LockHigh = FILE_LOCK_MASK_HIGH(byte_size);
-
-			if (!UnlockFileEx(file_handle, 0, LockLow, LockHigh, CPP_MQH_ADDRESS_OF(Ov_R))) {
-
-				ulong Error = CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_UNLOCK);
-				ulong Vis= GetWin32LastError();
-				uint Line = __LINE__;
-
-				string File_Name;
-
-				ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
-
-				if (Error_Code != ERROR_SUCCESS)
-					return Error_Code;
-
-				Set_System_Error(Error,Vis, Line, File_Name);
-
-
-				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_UNLOCK);
-			}
-
-			else {
-
-				return ERROR_SUCCESS;
-			}
-		}
-
-		inline ulong Lock_File(const HANDLE& file_handle, const ulong& file_size) {
-
-			OVERLAPPED Ov_R = {};
-
-			uint LockLow = FILE_LOCK_MASK_LOW(file_size);
-			uint LockHigh = FILE_LOCK_MASK_HIGH(file_size);
-
-			if (!LockFileEx(file_handle, LOCKFILE_EXCLUSIVE_LOCK, 0, LockLow, LockHigh, CPP_MQH_ADDRESS_OF(Ov_R))) {
-
-				ulong Error = CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_LOCK);
-				ulong Vis= GetWin32LastError();
-				uint Line = __LINE__;
-
-				string File_Name;
-
-				ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
-
-				if (Error_Code != ERROR_SUCCESS)
-					return Error_Code;
-
-				Set_System_Error(Error,Vis, Line, File_Name);
-
-
-				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_LOCK);
-			}
-
-			else {
-
-				return ERROR_SUCCESS;
-			}
-		}
-
-		inline ulong Try_Lock_File(const HANDLE& file_handle, const ulong& file_size) {
-
-			ulong result = 0;
-
-			for (uint i = 0; i < TRY_FILE_LOCK_COUNTER; i++) {
-
-				result = Lock_File(file_handle, file_size);
-
-				if (result == ERROR_SUCCESS) {
-
-					return ERROR_SUCCESS;
-				}
-
-				Sleep(SLEEP_MILLI_SECOND_VALUE);
-			}
-
-			return result;
-		}
-
-		inline ulong Reset_File_Pointer(const HANDLE& file_handle) {
-
-			SetLastError(ERROR_SUCCESS);
-
-			CPP_MQH_LARGE Move_P = {}, result_P = {};
-
-			if (!SetFilePointerEx(file_handle, Move_P, CPP_MQH_ADDRESS_NULL(result_P), FILE_BEGIN)) {
-
-				ulong Error = GetWin32LastError();
-				ulong Vis= GetWin32LastError();
-				uint Line = __LINE__;
-
-				string File_Name;
-
-				ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
-
-				if (Error_Code != ERROR_SUCCESS)
-					return Error_Code;
-
-				Set_System_Error(Error,Vis, Line, File_Name);
-
-
-				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_FILE_POINTER_SET);
-			}
-
-			else {
-
-				return ERROR_SUCCESS;
-			}
-		}
-
-		virtual inline ulong Create_Folder(const string& folder_name) {
-
-			return 0;
-		}
-
-		virtual inline ulong Find_Drc(const string& drc_name, FIND_DATAW& result) {
-
-			return 0;
-		}
-
-		inline void Close_File(HANDLE& file_handle) {
-
-			if (file_handle != INVALID_HANDLE_VALUE && file_handle != NULL) {
-
-				CloseHandle(file_handle);
-
-				file_handle = NULL;
-			}
-		}
-
-	public:
-
-		inline ulong Alignment_Checker() {
-
-			if (sizeof(Data) != 8) {
-
-				return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_CORRECT_ALIGNMENT);
-			}
-			else {
-
-				return ERROR_SUCCESS;
-			}
-		}
-
-
-		virtual inline void Set_Write_Data(const ulong data) {
-
-
-		}
-	};
-
-#ifdef COMPILER_FOO_CPP
-
-	class FILE_MANAGER_CROSS : public FILE_MANAGER_BASE {
+	class BYTE8_FILE_MANAGER_CROSS : public BYTE8_FILE_MANAGER_BASE {
 
 	protected:
 
@@ -2040,6 +2168,8 @@
 
 			return source.QuadPart;
 		}
+
+		
 
 		virtual inline ulong File_Read(const HANDLE& file_handle) override {
 
@@ -2206,7 +2336,7 @@
 #ifdef COMPILER_FOO_MQH5
 
 
-	class FILE_MANAGER_CROSS : public FILE_MANAGER_BASE {
+	class BYTE8_FILE_MANAGER_CROSS : public BYTE8_FILE_MANAGER_BASE {
 
 	protected:
 
@@ -2502,64 +2632,49 @@
 
 #endif
 
-	class FILE_MANAGER_USE : public FILE_MANAGER_CROSS {
+	class BYTE8_FILE_MANAGER_USE : public BYTE8_FILE_MANAGER_CROSS {
 
 	private:
 
-		struct HANDLES {
+		HANDLE File_Handle;
+		ulong File_Size;
 
-			HANDLE Error;
-			HANDLE Vis;
-			HANDLE Lang;
-		};
-		
-		HANDLES Handle;
 
-		struct FILES_SIZE {
-
-			ulong Error;
-			ulong Vis;
-			ulong Lang;
-		};
-
-		FILES_SIZE File_Size;
-
-		FILE_MANAGER_USE(const FILE_MANAGER_USE& source);
+		BYTE8_FILE_MANAGER_USE(const BYTE8_FILE_MANAGER_USE& source);
 
 #ifdef COMPILER_FOO_CPP
 
-		FILE_MANAGER_USE& operator=(const FILE_MANAGER_USE&) = delete;
+		BYTE8_FILE_MANAGER_USE& operator=(const BYTE8_FILE_MANAGER_USE&) = delete;
 
 #endif
 
 	public:
 
-		FILE_MANAGER_USE() {
+		BYTE8_FILE_MANAGER_USE() {
 
-			Handle.Error = INVALID_HANDLE_VALUE;
-			Handle.Lang = INVALID_HANDLE_VALUE;
-			Handle.Vis = INVALID_HANDLE_VALUE;
-
-			File_Size.Error = 0;
-			File_Size.Lang = 0;
-			File_Size.Vis = 0;
-
+			File_Handle = INVALID_HANDLE_VALUE;
+			File_Size = 0;
+			
 			Now_File_Lock_Initialization();
 		}
 
-		~FILE_MANAGER_USE() {
+		~BYTE8_FILE_MANAGER_USE() {
 
-			Unlock_File(Handle.Error, File_Size.Error);
-			Close_File(Handle.Error);
-
-			Unlock_File(Handle.Vis, File_Size.Vis);
-			Close_File(Handle.Vis);
-
-			Unlock_File(Handle.Lang, File_Size.Lang);
-			Close_File(Handle.Lang);
+			Unlock_File(File_Handle, File_Size);
+			Close_File(File_Handle);
 		}
 
 	private:
+
+		inline void Reset_Member() {
+
+			Unlock_File(File_Handle, File_Size);
+			Close_File(File_Handle);
+
+			File_Size = 0;
+		}
+
+		
 
 		inline ulong Create_Root(const string& file_name) {
 
@@ -2580,157 +2695,99 @@
 					return Error_Code;
 			}
 
+			int Array_Size = 0;
 
+#ifdef COMPILER_FOO_CPP
+
+			std::vector <string> Array;
 
 			if (file_name == ERR_MS_ERR_NUM_FILE_NAME) {
 
-				for (int i = 0; i < FIND_ERROR_COUNT; i++) {
-
-					if (!StringAdd(Drc, FIND_ROOT_STRING_ERROR[i])) {
-
-						ulong Error = CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_ROOT_DRC);
-						ulong Vis= GetLastError();
-						uint Line = __LINE__;
-
-						string File_Name;
-
-						ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
-
-						if (Error_Code != ERROR_SUCCESS)
-							return Error_Code;
-
-						Set_System_Error(Error,Vis, Line, File_Name);
-
-
-						return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_ROOT_DRC);
-					}
-
-					Error_Code = Find_Drc(Drc, Find_Data);
-
-					if (Error_Code != ERROR_SUCCESS) {
-
-						ulong Error,Vis;
-						uint Line;
-						string file_name;
-
-						Get_System_Error(Error,Vis, Line, file_name);
-
-						if (Error == ERROR_FILE_NOT_FOUND) {
-
-							Error_Code = Create_Folder(Drc);
-
-							if (Error_Code != ERROR_SUCCESS && Error != ERROR_ALREADY_EXISTS) {
-
-								return Error_Code;
-							}
-						}
-
-						else {
-
-							return Error_Code;
-						}
-					}
-				}
+				Array.assign(std::begin(FIND_ROOT_STRING_ERROR), std::end(FIND_ROOT_STRING_ERROR));
 			}
 
 			if (file_name == ERR_MS_VISIBLE_ERR_NUM_FILE_NAME) {
 
-				for (int i = 0; i < FIND_VIS_COUNT; i++) {
-
-					if (!StringAdd(Drc, FIND_ROOT_STRING_VIS[i])) {
-
-						ulong Error = CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_ROOT_DRC);
-						ulong Vis= GetLastError();
-						uint Line = __LINE__;
-
-						string File_Name;
-
-						ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
-
-						if (Error_Code != ERROR_SUCCESS)
-							return Error_Code;
-
-						Set_System_Error(Error,Vis, Line, File_Name);
-
-
-						return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_ROOT_DRC);
-					}
-
-					Error_Code = Find_Drc(Drc, Find_Data);
-
-					if (Error_Code != ERROR_SUCCESS) {
-
-						ulong Error,Vis;
-						uint Line;
-						string file_name;
-
-						Get_System_Error(Error,Vis, Line, file_name);
-
-						if (Error == ERROR_FILE_NOT_FOUND) {
-
-							Error_Code = Create_Folder(Drc);
-
-							if (Error_Code != ERROR_SUCCESS && Error != ERROR_ALREADY_EXISTS) {
-
-								return Error_Code;
-							}
-						}
-
-						else {
-
-							return Error_Code;
-						}
-					}
-				}
+				Array.assign(std::begin(FIND_ROOT_STRING_VIS), std::end(FIND_ROOT_STRING_VIS));
 			}
 
 			if (file_name == MT5_LANGUAGE_NUM_FILE_NAME) {
 
-				for (int i = 0; i < FIND_LANG_COUNT; i++) {
+				Array.assign(std::begin(FIND_ROOT_STRING_LANG), std::end(FIND_ROOT_STRING_LANG));
+			}
 
-					if (!StringAdd(Drc, FIND_ROOT_STRING_LANG[i])) {
+			Array_Size = Array.size();
 
-						ulong Error = CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_ROOT_DRC);
-						ulong Vis= GetLastError();
-						uint Line = __LINE__;
+#endif
 
-						string File_Name;
+#ifdef COMPILER_FOO_MQH5
 
-						ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
+			string Array[];
 
-						if (Error_Code != ERROR_SUCCESS)
+			if (file_name == ERR_MS_ERR_NUM_FILE_NAME) {
+
+				ArrayCopy(Array,FIND_ROOT_STRING_ERROR, 0,0, WHOLE_ARRAY);
+			}
+
+			if (file_name == ERR_MS_VISIBLE_ERR_NUM_FILE_NAME) {
+
+				ArrayCopy(Array,FIND_ROOT_STRING_VIS, 0, 0, WHOLE_ARRAY);
+			}
+
+			if (file_name == MT5_LANGUAGE_NUM_FILE_NAME) {
+
+				ArrayCopy(Array,FIND_ROOT_STRING_LANG, 0, 0, WHOLE_ARRAY);
+			}
+
+			Array_Size = ArraySize(Array);
+
+#endif
+
+
+			for (int i = 0; i < Array_Size; i++) {
+
+				if (!StringAdd(Drc, Array[i])) {
+
+					ulong Error = CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_ROOT_DRC);
+					ulong Vis = GetLastError();
+					uint Line = __LINE__;
+
+					string File_Name;
+
+					ulong Error_Code = Get_File_Name(CPP_MQH_FILE, File_Name);
+
+					if (Error_Code != ERROR_SUCCESS)
+						return Error_Code;
+
+					Set_System_Error(Error, Vis, Line, File_Name);
+
+
+					return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_ROOT_DRC);
+				}
+
+				Error_Code = Find_Drc(Drc, Find_Data);
+
+				if (Error_Code != ERROR_SUCCESS) {
+
+					ulong Error, Vis;
+					uint Line;
+					string file_name;
+
+					Get_System_Error(Error, Vis, Line, file_name);
+
+					if (Error == ERROR_FILE_NOT_FOUND) {
+
+						Error_Code = Create_Folder(Drc);
+
+						if (Error_Code != ERROR_SUCCESS && Error != ERROR_ALREADY_EXISTS) {
+
 							return Error_Code;
-
-						Set_System_Error(Error,Vis, Line, File_Name);
-
-
-						return CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_FAILED_ROOT_DRC);
+						}
 					}
 
-					Error_Code = Find_Drc(Drc, Find_Data);
+					else {
 
-					if (Error_Code != ERROR_SUCCESS) {
-
-						ulong Error,Vis;
-						uint Line;
-						string file_name;
-
-						Get_System_Error(Error,Vis, Line, file_name);
-
-						if (Error == ERROR_FILE_NOT_FOUND) {
-
-							Error_Code = Create_Folder(Drc);
-
-							if (Error_Code != ERROR_SUCCESS && Error != ERROR_ALREADY_EXISTS) {
-
-								return Error_Code;
-							}
-						}
-
-						else {
-
-							return Error_Code;
-						}
+						return Error_Code;
 					}
 				}
 			}
@@ -2809,9 +2866,8 @@
 
 	public:
 
-		inline ulong Read_Error(ulong& result,ulong& last_time) {
+		inline ulong Read(ulong& result,ulong& last_time,const string& file_name,const string file_drc) {
 
-			SetLastError(ERROR_SUCCESS);
 
 			ulong Error_Code = File_Lock_Only_1();
 
@@ -2824,84 +2880,97 @@
 
 			string File_Path;
 
-			Error_Code = Get_Full_Path(CONTROL_FOLDER_DRC, ERR_MS_ERR_NUM_FILE_DRC, ERR_MS_ERR_NUM_FILE_NAME, File_Path);
+			Error_Code = Get_Full_Path(CONTROL_FOLDER_DRC, file_drc, file_name, File_Path);
 
 			if (Error_Code != ERROR_SUCCESS) {
 
 				return Error_Code;
 			}
 
-			Error_Code = Create_Root(ERR_MS_ERR_NUM_FILE_NAME);
+			Error_Code = Create_Root(file_name);
 
 			if (Error_Code != ERROR_SUCCESS) {
 
 				return Error_Code;
 			}
 
-			Error_Code = Open_File(Handle.Error, File_Path, P_Large);
+			Error_Code = Open_File(File_Handle, File_Path, P_Large);
 
 			if (Error_Code != ERROR_SUCCESS) {
 
-				return Error_Code;
+				if (Error_Code == CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_CREATE_NEW_FILE)) {
+
+					ulong Error_Code = File_Initialization(File_Handle);
+
+					if (Error_Code != ERROR_SUCCESS) {
+
+						Reset_Member();
+
+						return Error_Code;
+					}
+				}
+
+				else
+					return Error_Code;
 			}
 
-			Error_Code = Check_File_Size(Handle.Error, ERR_MS_ERR_NUM_FILE_SIZE, P_Large);
+			Error_Code = Check_File_Size(ULONG_VALUE_FILE_SIZE, P_Large);
 
 			if (Error_Code != ERROR_SUCCESS) {
 
 				Set_Now_File_Lock(false);
 
-				Close_File(Handle.Error);
+				Reset_Member();
 
 				return Error_Code;
 			}
 
-			File_Size.Error = Get_QuadPart_Cpp_Mqh(P_Large);
+			File_Size = Get_QuadPart_Cpp_Mqh(P_Large);
 
-			Error_Code = Try_Lock_File(Handle.Error, File_Size.Error);
+			Error_Code = Try_Lock_File(File_Handle, File_Size);
 
 			if (Error_Code != ERROR_SUCCESS) {
 
 				Set_Now_File_Lock(false);
 
-				Close_File(Handle.Error);
+				Reset_Member();
 
 				return Error_Code;
 			}
 
-			Error_Code = Get_File_Last_Write_Time(Handle.Error, last_time);
+			Error_Code = Get_File_Last_Write_Time(File_Handle, last_time);
 
 			if (Error_Code != ERROR_SUCCESS) {
 
 				Set_Now_File_Lock(false);
 
-				Close_File(Handle.Error);
+				Reset_Member();
 
 				return Error_Code;
 			}
 
-			Error_Code = Reset_File_Pointer(Handle.Error);
+			Error_Code = Reset_File_Pointer(File_Handle);
 
 			if (Error_Code != ERROR_SUCCESS) {
 
 				Set_Now_File_Lock(false);
 
-				Close_File(Handle.Error);
+				Reset_Member();
 
 				return Error_Code;
 			}
 
-			Error_Code = File_Read(Handle.Error);
+			Error_Code = File_Read(File_Handle);
 
 			if (Error_Code != ERROR_SUCCESS) {
 
-				ulong Unlock_Error = Unlock_File(Handle.Error, File_Size.Error);
+				ulong Unlock_Error = Unlock_File(File_Handle, File_Size);
 
 				if (Unlock_Error == ERROR_SUCCESS) {
 
 					Set_Now_File_Lock(false);
 
-					Close_File(Handle.Error);
+					Reset_Member();
 
 					return Error_Code;
 				}
@@ -2910,7 +2979,7 @@
 
 					Set_Now_File_Lock(false);
 
-					Close_File(Handle.Error);
+					Reset_Member();
 
 					return Unlock_Error;
 				}
@@ -2920,13 +2989,13 @@
 
 				result = Get_Read_Data();
 
-				Error_Code = Unlock_File(Handle.Error, File_Size.Error);
+				Error_Code = Unlock_File(File_Handle, File_Size);
 
 				if (Error_Code != ERROR_SUCCESS) {
 
 					Set_Now_File_Lock(false);
 
-					Close_File(Handle.Error);
+					Reset_Member();
 
 					return Error_Code;
 				}
@@ -2934,14 +3003,13 @@
 
 			Set_Now_File_Lock(false);
 
-			Close_File(Handle.Error);
+			Reset_Member();
 
 			return ERROR_SUCCESS;
 		};
 
-		inline ulong Read_Lang(ulong& result,ulong& last_time) {
 
-			SetLastError(ERROR_SUCCESS);
+		inline ulong Write(const ulong& data, const string& file_name, const string file_drc) {
 
 			ulong Error_Code = File_Lock_Only_1();
 
@@ -2954,337 +3022,88 @@
 
 			string File_Path;
 
-			Error_Code = Get_Full_Path(CONTROL_FOLDER_DRC, MT5_LANGUAGE_NUM_FILE_DRC, MT5_LANGUAGE_NUM_FILE_NAME, File_Path);
+			Error_Code = Get_Full_Path(CONTROL_FOLDER_DRC, file_drc, file_name, File_Path);
 
 			if (Error_Code != ERROR_SUCCESS) {
 
 				return Error_Code;
 			}
 
-			Error_Code = Create_Root(MT5_LANGUAGE_NUM_FILE_NAME);
+			Error_Code = Create_Root(file_name);
 
 			if (Error_Code != ERROR_SUCCESS) {
 
 				return Error_Code;
 			}
 
-			Error_Code = Open_File(Handle.Lang, File_Path, P_Large);
+			Error_Code = Open_File(File_Handle, File_Path, P_Large);
 
 			if (Error_Code != ERROR_SUCCESS) {
 
-				return Error_Code;
-			}
+				if (Error_Code == CALC_CUSTOM_ERROR_CODE(CUSTOM_ERROR_CODE_CREATE_NEW_FILE)) {
 
-			Error_Code = Check_File_Size(Handle.Lang, MT5_LANGUAGE_NUM_FILE_SIZE, P_Large);
+					ulong Error_Code = File_Initialization(File_Handle);
 
-			if (Error_Code != ERROR_SUCCESS) {
+					if (Error_Code != ERROR_SUCCESS) {
 
-				Set_Now_File_Lock(false);
+						Reset_Member();
 
-				Close_File(Handle.Lang);
+						return Error_Code;
+					}
+				}
 
-				return Error_Code;
-			}
-
-			File_Size.Lang = Get_QuadPart_Cpp_Mqh(P_Large);
-
-			Error_Code = Try_Lock_File(Handle.Lang, File_Size.Lang);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				Set_Now_File_Lock(false);
-
-				Close_File(Handle.Lang);
-
-				return Error_Code;
-			}
-
-			Error_Code = Get_File_Last_Write_Time(Handle.Lang, last_time);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				Set_Now_File_Lock(false);
-
-				Close_File(Handle.Lang);
-
-				return Error_Code;
-			}
-
-			Error_Code = Reset_File_Pointer(Handle.Lang);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				Set_Now_File_Lock(false);
-
-				Close_File(Handle.Lang);
-
-				return Error_Code;
-			}
-
-			Error_Code = File_Read(Handle.Lang);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				ulong Unlock_Error = Unlock_File(Handle.Lang, File_Size.Lang);
-
-				if (Unlock_Error == ERROR_SUCCESS) {
-
-					Set_Now_File_Lock(false);
-
-					Close_File(Handle.Lang);
-
+				else
 					return Error_Code;
-				}
-
-				else {
-
-					Set_Now_File_Lock(false);
-
-					Close_File(Handle.Lang);
-
-					return Unlock_Error;
-				}
 			}
 
-			else {
-
-				result = Get_Read_Data();
-
-				Error_Code = Unlock_File(Handle.Lang, File_Size.Lang);
-
-				if (Error_Code != ERROR_SUCCESS) {
-
-					Set_Now_File_Lock(false);
-
-					Close_File(Handle.Lang);
-
-					return Error_Code;
-				}
-			}
-
-			Set_Now_File_Lock(false);
-
-			Close_File(Handle.Lang);
-
-			return ERROR_SUCCESS;
-		};
-
-		inline ulong Read_Vis(ulong& result, ulong& last_time) {
-
-		
-			SetLastError(ERROR_SUCCESS);
-
-			ulong Error_Code = File_Lock_Only_1();
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				return Error_Code;
-			}
-
-			CPP_MQH_LARGE P_Large = {};
-
-			string File_Path;
-
-			Error_Code = Get_Full_Path(CONTROL_FOLDER_DRC, ERR_MS_VISIBLE_ERR_NUM_FILE_DRC, ERR_MS_VISIBLE_ERR_NUM_FILE_NAME, File_Path);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				return Error_Code;
-			}
-
-			Error_Code = Create_Root(ERR_MS_VISIBLE_ERR_NUM_FILE_NAME);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				return Error_Code;
-			}
-
-			Error_Code = Open_File(Handle.Vis, File_Path, P_Large);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				return Error_Code;
-			}
-
-			Error_Code = Check_File_Size(Handle.Vis, ERR_MS_VISIBLE_ERR_NUM_FILE_SIZE, P_Large);
+			Error_Code = Check_File_Size(ULONG_VALUE_FILE_SIZE, P_Large);
 
 			if (Error_Code != ERROR_SUCCESS) {
 
 				Set_Now_File_Lock(false);
 
-				Close_File(Handle.Vis);
+				Reset_Member();
 
 				return Error_Code;
 			}
 
-			File_Size.Vis = Get_QuadPart_Cpp_Mqh(P_Large);
+			File_Size = Get_QuadPart_Cpp_Mqh(P_Large);
 
-			Error_Code = Try_Lock_File(Handle.Vis, File_Size.Vis);
+			Error_Code = Try_Lock_File(File_Handle, File_Size);
 
 			if (Error_Code != ERROR_SUCCESS) {
 
 				Set_Now_File_Lock(false);
 
-				Close_File(Handle.Vis);
+				Reset_Member();
 
 				return Error_Code;
 			}
 
-			Error_Code = Get_File_Last_Write_Time(Handle.Vis, last_time);
+			Error_Code = Reset_File_Pointer(File_Handle);
 
 			if (Error_Code != ERROR_SUCCESS) {
 
 				Set_Now_File_Lock(false);
 
-				Close_File(Handle.Vis);
-
-				return Error_Code;
-			}
-
-			Error_Code = Reset_File_Pointer(Handle.Vis);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				Set_Now_File_Lock(false);
-
-				Close_File(Handle.Vis);
-
-				return Error_Code;
-			}
-
-			Error_Code = File_Read(Handle.Vis);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				ulong Unlock_Error = Unlock_File(Handle.Vis, File_Size.Vis);
-
-				if (Unlock_Error == ERROR_SUCCESS) {
-
-					Set_Now_File_Lock(false);
-
-					Close_File(Handle.Vis);
-
-					return Error_Code;
-				}
-
-				else {
-
-					Set_Now_File_Lock(false);
-
-					Close_File(Handle.Vis);
-
-					return Unlock_Error;
-				}
-			}
-
-			else {
-
-				result = Get_Read_Data();
-
-				Error_Code = Unlock_File(Handle.Vis, File_Size.Vis);
-
-				if (Error_Code != ERROR_SUCCESS) {
-
-					Set_Now_File_Lock(false);
-
-					Close_File(Handle.Vis);
-
-					return Error_Code;
-				}
-			}
-
-			Set_Now_File_Lock(false);
-
-			Close_File(Handle.Vis);
-
-			return ERROR_SUCCESS;
-		};
-
-		inline ulong Write_Error(const ulong& data) {
-
-			
-			SetLastError(ERROR_SUCCESS);
-
-			ulong Error_Code = File_Lock_Only_1();
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				return Error_Code;
-			}
-
-			CPP_MQH_LARGE P_Large = {};
-
-			string File_Path;
-
-			Error_Code = Get_Full_Path(CONTROL_FOLDER_DRC, ERR_MS_ERR_NUM_FILE_DRC, ERR_MS_ERR_NUM_FILE_NAME, File_Path);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				return Error_Code;
-			}
-
-			Error_Code = Create_Root(ERR_MS_ERR_NUM_FILE_NAME);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				return Error_Code;
-			}
-
-			Error_Code = Open_File(Handle.Error, File_Path, P_Large);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				return Error_Code;
-			}
-
-			Error_Code = Check_File_Size(Handle.Error, ERR_MS_ERR_NUM_FILE_SIZE, P_Large);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				Set_Now_File_Lock(false);
-
-				Close_File(Handle.Error);
-
-				return Error_Code;
-			}
-
-			File_Size.Error = Get_QuadPart_Cpp_Mqh(P_Large);
-
-			Error_Code = Try_Lock_File(Handle.Error, File_Size.Error);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				Set_Now_File_Lock(false);
-
-				Close_File(Handle.Error);
-
-				return Error_Code;
-			}
-
-			Error_Code = Reset_File_Pointer(Handle.Error);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				Set_Now_File_Lock(false);
-
-				Close_File(Handle.Error);
+				Reset_Member();
 
 				return Error_Code;
 			}
 
 			Set_Write_Data(data);
 
-			Error_Code = File_Write(Handle.Error);
+			Error_Code = File_Write(File_Handle);
 
 			if (Error_Code != ERROR_SUCCESS) {
 
-				ulong Unlock_Error = Unlock_File(Handle.Error, File_Size.Error);
+				ulong Unlock_Error = Unlock_File(File_Handle, File_Size);
 
 				if (Unlock_Error == ERROR_SUCCESS) {
 
 					Set_Now_File_Lock(false);
 
-					Close_File(Handle.Error);
+					Reset_Member();
 
 					return Error_Code;
 				}
@@ -3293,7 +3112,7 @@
 
 					Set_Now_File_Lock(false);
 
-					Close_File(Handle.Error);
+					Reset_Member();
 
 					return Unlock_Error;
 				}
@@ -3301,24 +3120,24 @@
 
 			else {
 
-				Error_Code = File_Write_Flash(Handle.Error);
+				Error_Code = File_Write_Flash(File_Handle);
 
 				if (Error_Code != ERROR_SUCCESS) {
 
 					Set_Now_File_Lock(false);
 
-					Close_File(Handle.Error);
+					Reset_Member();
 
 					return Error_Code;
 				}
 
-				Error_Code = Unlock_File(Handle.Error, File_Size.Error);
+				Error_Code = Unlock_File(File_Handle, File_Size);
 
 				if (Error_Code != ERROR_SUCCESS) {
 
 					Set_Now_File_Lock(false);
 
-					Close_File(Handle.Error);
+					Reset_Member();
 
 					return Error_Code;
 				}
@@ -3326,269 +3145,7 @@
 
 			Set_Now_File_Lock(false);
 
-			Close_File(Handle.Error);
-
-			return ERROR_SUCCESS;
-		};
-
-		inline ulong Write_Vis(const ulong& data) {
-
-			
-			SetLastError(ERROR_SUCCESS);
-
-			ulong Error_Code = File_Lock_Only_1();
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				return Error_Code;
-			}
-
-			CPP_MQH_LARGE P_Large = {};
-
-			string File_Path;
-
-			Error_Code = Get_Full_Path(CONTROL_FOLDER_DRC, ERR_MS_VISIBLE_ERR_NUM_FILE_DRC, ERR_MS_VISIBLE_ERR_NUM_FILE_NAME, File_Path);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				return Error_Code;
-			}
-
-			Error_Code = Create_Root(ERR_MS_VISIBLE_ERR_NUM_FILE_NAME);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				return Error_Code;
-			}
-
-			Error_Code = Open_File(Handle.Vis, File_Path, P_Large);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				return Error_Code;
-			}
-
-			Error_Code = Check_File_Size(Handle.Vis, ERR_MS_VISIBLE_ERR_NUM_FILE_SIZE, P_Large);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				Set_Now_File_Lock(false);
-
-				Close_File(Handle.Vis);
-
-				return Error_Code;
-			}
-
-			File_Size.Vis = Get_QuadPart_Cpp_Mqh(P_Large);
-
-			Error_Code = Try_Lock_File(Handle.Vis, File_Size.Vis);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				Set_Now_File_Lock(false);
-
-				Close_File(Handle.Vis);
-
-				return Error_Code;
-			}
-
-			Error_Code = Reset_File_Pointer(Handle.Vis);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				Set_Now_File_Lock(false);
-
-				Close_File(Handle.Vis);
-
-				return Error_Code;
-			}
-
-			Set_Write_Data(data);
-
-			Error_Code = File_Write(Handle.Vis);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				ulong Unlock_Error = Unlock_File(Handle.Vis, File_Size.Vis);
-
-				if (Unlock_Error == ERROR_SUCCESS) {
-
-					Set_Now_File_Lock(false);
-
-					Close_File(Handle.Vis);
-
-					return Error_Code;
-				}
-
-				else {
-
-					Set_Now_File_Lock(false);
-
-					Close_File(Handle.Vis);
-
-					return Unlock_Error;
-				}
-			}
-
-			else {
-
-				Error_Code = File_Write_Flash(Handle.Vis);
-
-				if (Error_Code != ERROR_SUCCESS) {
-
-					Set_Now_File_Lock(false);
-
-					Close_File(Handle.Vis);
-
-					return Error_Code;
-				}
-
-				Error_Code = Unlock_File(Handle.Vis, File_Size.Vis);
-
-				if (Error_Code != ERROR_SUCCESS) {
-
-					Set_Now_File_Lock(false);
-
-					Close_File(Handle.Vis);
-
-					return Error_Code;
-				}
-			}
-
-			Set_Now_File_Lock(false);
-
-			Close_File(Handle.Vis);
-
-			return ERROR_SUCCESS;
-		};
-
-		inline ulong Write_Lang(const ulong& data) {
-
-			
-			SetLastError(ERROR_SUCCESS);
-
-			ulong Error_Code = File_Lock_Only_1();
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				return Error_Code;
-			}
-
-			CPP_MQH_LARGE P_Large = {};
-
-			string File_Path;
-
-			Error_Code = Get_Full_Path(CONTROL_FOLDER_DRC, MT5_LANGUAGE_NUM_FILE_DRC, MT5_LANGUAGE_NUM_FILE_NAME, File_Path);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				return Error_Code;
-			}
-
-			Error_Code = Create_Root(MT5_LANGUAGE_NUM_FILE_NAME);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				return Error_Code;
-			}
-
-			Error_Code = Open_File(Handle.Lang, File_Path, P_Large);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				return Error_Code;
-			}
-
-			Error_Code = Check_File_Size(Handle.Lang, MT5_LANGUAGE_NUM_FILE_SIZE, P_Large);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				Set_Now_File_Lock(false);
-
-				Close_File(Handle.Lang);
-
-				return Error_Code;
-			}
-
-			File_Size.Lang = Get_QuadPart_Cpp_Mqh(P_Large);
-
-			Error_Code = Try_Lock_File(Handle.Lang, File_Size.Lang);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				Set_Now_File_Lock(false);
-
-				Close_File(Handle.Lang);
-
-				return Error_Code;
-			}
-
-			Error_Code = Reset_File_Pointer(Handle.Lang);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				Set_Now_File_Lock(false);
-
-				Close_File(Handle.Lang);
-
-				return Error_Code;
-			}
-
-			Set_Write_Data(data);
-
-			Error_Code = File_Write(Handle.Lang);
-
-			if (Error_Code != ERROR_SUCCESS) {
-
-				ulong Unlock_Error = Unlock_File(Handle.Lang, File_Size.Lang);
-
-				if (Unlock_Error == ERROR_SUCCESS) {
-
-					Set_Now_File_Lock(false);
-
-					Close_File(Handle.Lang);
-
-					return Error_Code;
-				}
-
-				else {
-
-					Set_Now_File_Lock(false);
-
-					Close_File(Handle.Lang);
-
-					return Unlock_Error;
-				}
-			}
-
-			else {
-
-				Error_Code = File_Write_Flash(Handle.Lang);
-
-				if (Error_Code != ERROR_SUCCESS) {
-
-					Set_Now_File_Lock(false);
-
-					Close_File(Handle.Lang);
-
-					return Error_Code;
-				}
-
-				Error_Code = Unlock_File(Handle.Lang, File_Size.Lang);
-
-				if (Error_Code != ERROR_SUCCESS) {
-
-					Set_Now_File_Lock(false);
-
-					Close_File(Handle.Lang);
-
-					return Error_Code;
-				}
-			}
-
-			Set_Now_File_Lock(false);
-
-			Close_File(Handle.Lang);
+			Reset_Member();
 
 			return ERROR_SUCCESS;
 		};
